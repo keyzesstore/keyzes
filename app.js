@@ -76,11 +76,19 @@
     }
 
     function showEmailConfirmSuccessOverlay(title, message) {
+        console.log('[Email Confirm Success] Called with title:', title);
         const overlay = document.getElementById('emailConfirmOverlay');
         const loading = document.getElementById('emailConfirmLoading');
         const success = document.getElementById('emailConfirmSuccess');
         const error = document.getElementById('emailConfirmError');
         
+        console.log('[Email Confirm Success] Elements found:', {
+            overlay: !!overlay,
+            loading: !!loading,
+            success: !!success,
+            error: !!error
+        });
+
         if (!overlay || !loading || !success) {
             console.warn('[Email Confirm] Missing overlay elements');
             showToast('Email confirmed. You are now logged in.', 'success');
@@ -90,17 +98,23 @@
         // Update text content
         const titleEl = success.querySelector('.email-confirm-title');
         const subEl = success.querySelector('.email-confirm-sub');
+        console.log('[Email Confirm Success] Title element found:', !!titleEl);
+        console.log('[Email Confirm Success] Sub element found:', !!subEl);
+        
         if (titleEl) titleEl.textContent = title || 'Email confirmed!';
         if (subEl) subEl.textContent = message || 'You are now logged in and ready to shop.';
 
         // Hide all states first
+        console.log('[Email Confirm Success] Hiding loading, showing success...');
         loading.style.display = 'none';
         if (error) error.style.display = 'none';
         
         // Show success state
         success.style.display = 'flex';
         overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible';
         overlay.classList.add('active');
+        console.log('[Email Confirm Success] Overlay should now be visible');
     }
 
     function queueEmailConfirmedBanner() {
@@ -110,12 +124,17 @@
     }
 
     function showQueuedEmailConfirmedBanner() {
+        console.log('[Email Confirm Queued] Checking for queued banner...');
         try {
-            if (window.sessionStorage.getItem('keyzesEmailConfirmedBanner') !== '1') return;
+            const isQueued = window.sessionStorage.getItem('keyzesEmailConfirmedBanner') === '1';
+            console.log('[Email Confirm Queued] Is queued:', isQueued);
+            if (!isQueued) return;
             window.sessionStorage.removeItem('keyzesEmailConfirmedBanner');
-        } catch {
+        } catch (e) {
+            console.warn('[Email Confirm Queued] sessionStorage error:', e);
             return;
         }
+        console.log('[Email Confirm Queued] Showing queued banner overlay...');
         showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
     }
 
@@ -1306,15 +1325,20 @@
     async function initializeCustomerAuth() {
         // Token-hash confirmation must run before anything else so the overlay
         // is shown immediately if the user landed from a confirmation email.
+        console.log('[Auth Init] Starting customer auth initialization...');
         const isConfirmFlow = await handleTokenHashConfirmation();
+        console.log('[Auth Init] Email confirm flow result:', isConfirmFlow);
 
         if (!authReady()) {
+            console.log('[Auth Init] Auth not ready');
             setCurrentCustomer(null);
             if (!isConfirmFlow) handleAuthCallbackFeedback();
             return;
         }
+        console.log('[Auth Init] Auth is ready, syncing session...');
         await syncCustomerFromSession();
         if (!isConfirmFlow) handleAuthCallbackFeedback();
+        console.log('[Auth Init] About to check for queued banner...');
         showQueuedEmailConfirmedBanner();
         supabaseClient.auth.onAuthStateChange((_event, session) => {
             const user = session && session.user;
