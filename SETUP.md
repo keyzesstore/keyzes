@@ -53,6 +53,7 @@ Deploy:
 
 ```bash
 supabase functions deploy send-order-email
+supabase functions deploy delete-account
 ```
 
 Set function secrets:
@@ -61,7 +62,14 @@ Set function secrets:
 supabase secrets set RESEND_API_KEY=re_xxxxx
 supabase secrets set FROM_EMAIL=orders@keyzes.com
 supabase secrets set STORE_NAME=Keyzes
+supabase secrets set SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+supabase secrets set SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
 ```
+
+Notes for `delete-account`:
+- This function uses `SUPABASE_SERVICE_ROLE_KEY` to delete the authenticated user.
+- Keep service role key in Supabase secrets only (never in frontend files).
+- The frontend calls it using the logged-in user's bearer token.
 
 ## 6) Set up Resend domain
 
