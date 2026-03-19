@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const anonKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -22,9 +23,9 @@ Deno.serve(async (req) => {
         });
     }
 
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
         return Response.json(
-            { error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' },
+            { error: 'Server configuration error' },
             { status: 500, headers: corsHeaders }
         );
     }
@@ -37,25 +38,20 @@ Deno.serve(async (req) => {
         );
     }
 
-    const jwt = authHeader.replace('Bearer ', '').trim();
-    if (!jwt) {
-        return Response.json(
-            { error: 'Invalid bearer token' },
-            { status: 401, headers: corsHeaders }
-        );
-    }
-
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
+    // Verify the JWT using a user-scoped client — the correct Supabase Edge Function pattern.
+    // admin.auth.getUser(jwt) does not work reliably; creating a client with the JWT
+    // in the global Authorization header and calling getUser() without args is correct.
+    const userClient = createClient(supabaseUrl, anonKey, {
+        global: {
+            headers: { Authorization: authHeader },
+        },
         auth: {
             persistSession: false,
             autoRefreshToken: false,
         },
     });
 
-    const {
-        data: { user },
-        error: userError,
-    } = await admin.auth.getUser(jwt);
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
 
     if (userError || !user) {
         return Response.json(
@@ -63,6 +59,14 @@ Deno.serve(async (req) => {
             { status: 401, headers: corsHeaders }
         );
     }
+
+    // Use admin client only for the privileged deleteUser operation
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+        },
+    });
 
     const { error: deleteError } = await admin.auth.admin.deleteUser(user.id);
     if (deleteError) {

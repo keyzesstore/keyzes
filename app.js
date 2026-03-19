@@ -870,8 +870,10 @@
     const mobileAccountTrigger = $('#mobileAccountTrigger');
     const mobileAdminTrigger = $('#mobileAdminTrigger');
     const settingsBackBtn = $('#settingsBackBtn');
-    const settingsCustomerName = $('#settingsCustomerName');
-    const settingsCustomerEmail = $('#settingsCustomerEmail');
+    const customerProfileForm = $('#customerProfileForm');
+    const customerProfileNameInput = $('#customerProfileName');
+    const customerProfileEmailInput = $('#customerProfileEmail');
+    const customerProfileError = $('#customerProfileError');
     const customerPasswordForm = $('#customerPasswordForm');
     const customerNewPassword = $('#customerNewPassword');
     const customerNewPasswordConfirm = $('#customerNewPasswordConfirm');
@@ -1513,8 +1515,10 @@
         cartView.style.display = 'none';
         customerSettingsView.style.display = '';
         siteFooter.style.display = '';
-        settingsCustomerName.textContent = currentCustomer.name;
-        settingsCustomerEmail.textContent = currentCustomer.email;
+        customerProfileNameInput.value = currentCustomer.name || '';
+        customerProfileEmailInput.value = currentCustomer.email || '';
+        customerProfileError.textContent = '';
+        customerProfileForm.querySelectorAll('button[type="submit"]').forEach(b => { b.textContent = 'Save Changes'; b.disabled = false; });
         customerPasswordForm.reset();
         customerPasswordError.textContent = '';
         customerDeleteHelp.textContent = isDeleteAccountConfigured()
@@ -1573,6 +1577,59 @@
     const adminMobileBack = $('#adminMobileBack');
     if (adminMobileBack) adminMobileBack.addEventListener('click', () => showStorefront());
     if (settingsBackBtn) settingsBackBtn.addEventListener('click', () => showStorefront());
+
+    customerProfileForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!authReady() || !currentCustomer) {
+            customerProfileError.textContent = 'Please log in first.';
+            return;
+        }
+
+        const newName = customerProfileNameInput.value.trim();
+        const newEmail = customerProfileEmailInput.value.trim();
+        if (!newName) {
+            customerProfileError.textContent = 'Name cannot be empty.';
+            return;
+        }
+        if (!newEmail) {
+            customerProfileError.textContent = 'Email cannot be empty.';
+            return;
+        }
+
+        customerProfileError.textContent = '';
+        const submitBtn = customerProfileForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving…';
+
+        const updates = {};
+        if (newName !== currentCustomer.name) updates.data = { full_name: newName };
+        if (newEmail !== currentCustomer.email) updates.email = newEmail;
+
+        if (!updates.data && !updates.email) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Changes';
+            showToast('No changes to save.', 'info');
+            return;
+        }
+
+        const { data, error } = await supabaseClient.auth.updateUser(updates);
+
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Save Changes';
+
+        if (error) {
+            customerProfileError.textContent = error.message || 'Could not save changes.';
+            return;
+        }
+
+        if (updates.data) currentCustomer = mapSupabaseUserToCustomer(data.user);
+
+        if (updates.email) {
+            showToast('Check your new email address to confirm the change.', 'info');
+        } else {
+            showToast('Profile updated successfully.', 'success');
+        }
+    });
 
     customerPasswordForm.addEventListener('submit', async e => {
         e.preventDefault();
@@ -1634,6 +1691,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'apikey': APP_CONFIG.supabaseAnonKey,
                             Authorization: 'Bearer ' + session.access_token,
                         },
                         body: JSON.stringify({ reason: 'self-service-delete' }),

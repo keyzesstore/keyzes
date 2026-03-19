@@ -255,17 +255,23 @@
             <div class="account-grid">
                 <section class="settings-card">
                     <h3>Profile</h3>
-                    <p class="settings-hint">Manage your account details used for checkout and authentication.</p>
-                    <div class="account-profile-list">
-                        <div>
-                            <span class="account-profile-label">Name</span>
-                            <strong id="settingsCustomerName">-</strong>
+                    <p class="settings-hint">Update your name or email address. Email changes require confirmation via the new address.</p>
+                    <form id="customerProfileForm" class="customer-auth-form account-inline-form">
+                        <div class="admin-form-group">
+                            <label for="customerProfileName">Name</label>
+                            <div class="customer-input-wrap">
+                                <input type="text" id="customerProfileName" placeholder="Your name" autocomplete="name" required>
+                            </div>
                         </div>
-                        <div>
-                            <span class="account-profile-label">Email</span>
-                            <strong id="settingsCustomerEmail">-</strong>
+                        <div class="admin-form-group">
+                            <label for="customerProfileEmail">Email</label>
+                            <div class="customer-input-wrap">
+                                <input type="email" id="customerProfileEmail" placeholder="Your email" autocomplete="email" required>
+                            </div>
                         </div>
-                    </div>
+                        <div class="admin-login-error" id="customerProfileError"></div>
+                        <button type="submit" class="admin-login-btn">Save Changes</button>
+                    </form>
                 </section>
                 <section class="settings-card">
                     <h3>Change Password</h3>
