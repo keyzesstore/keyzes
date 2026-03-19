@@ -26,14 +26,38 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 
 -- Public checkout inserts only (no public reads)
-create policy if not exists "public can insert orders"
-on public.orders
-for insert
-to anon
-with check (true);
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'orders'
+          and policyname = 'public can insert orders'
+    ) then
+        create policy "public can insert orders"
+        on public.orders
+        for insert
+        to anon
+        with check (true);
+    end if;
+end
+$$;
 
-create policy if not exists "public can insert order items"
-on public.order_items
-for insert
-to anon
-with check (true);
+do $$
+begin
+    if not exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'order_items'
+          and policyname = 'public can insert order items'
+    ) then
+        create policy "public can insert order items"
+        on public.order_items
+        for insert
+        to anon
+        with check (true);
+    end if;
+end
+$$;
