@@ -75,6 +75,27 @@
         document.getElementById('emailConfirmError').style.display = 'flex';
     }
 
+    function showEmailConfirmSuccessOverlay(title, message) {
+        const overlay = document.getElementById('emailConfirmOverlay');
+        const loading = document.getElementById('emailConfirmLoading');
+        const success = document.getElementById('emailConfirmSuccess');
+        const error = document.getElementById('emailConfirmError');
+        if (!overlay || !loading || !success || !error) {
+            showToast('Email confirmed. You are now logged in.', 'success');
+            return;
+        }
+
+        const titleEl = success.querySelector('.email-confirm-title');
+        const subEl = success.querySelector('.email-confirm-sub');
+        if (titleEl) titleEl.textContent = title || 'Email confirmed!';
+        if (subEl) subEl.textContent = message || 'You are now logged in and ready to shop.';
+
+        loading.style.display = 'none';
+        error.style.display = 'none';
+        success.style.display = 'flex';
+        overlay.classList.add('active');
+    }
+
     function queueEmailConfirmedBanner() {
         try {
             window.sessionStorage.setItem('keyzesEmailConfirmedBanner', '1');
@@ -88,7 +109,7 @@
         } catch {
             return;
         }
-        showToast('Email confirmed. You are now logged in.', 'success');
+        showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
     }
 
     async function handleTokenHashConfirmation() {
@@ -122,8 +143,7 @@
         queueEmailConfirmedBanner();
 
         clearAuthCallbackUrl();
-        document.getElementById('emailConfirmLoading').style.display = 'none';
-        document.getElementById('emailConfirmSuccess').style.display = 'flex';
+        showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
         return true;
     }
 
@@ -175,7 +195,7 @@
 
         if (callbackParams.type === 'signup') {
             if (currentCustomer) {
-                showToast('Email confirmed. Your account is ready.', 'success');
+                showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
             } else {
                 openCustomerAuth('login', 'Email confirmed successfully. Log in to continue shopping.');
                 showToast('Email confirmed. You can now log in.', 'success');
