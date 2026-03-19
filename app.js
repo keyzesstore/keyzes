@@ -70,7 +70,108 @@
     }
 
     function showEmailConfirmError(msg) {
-        showToast(msg || 'Could not confirm your email. The link may have expired.', 'error');
+        document.getElementById('emailConfirmLoading').style.display = 'none';
+        document.getElementById('emailConfirmErrorMsg').textContent = msg;
+        document.getElementById('emailConfirmError').style.display = 'flex';
+    }
+
+    function hideEmailConfirmOverlay() {
+        const overlay = document.getElementById('emailConfirmOverlay');
+        if (!overlay) return;
+
+        overlay.classList.add('closing');
+        setTimeout(() => {
+            overlay.classList.remove('active', 'closing');
+
+            const loading = document.getElementById('emailConfirmLoading');
+            const success = document.getElementById('emailConfirmSuccess');
+            const error = document.getElementById('emailConfirmError');
+
+            if (loading) loading.style.display = 'flex';
+            if (success) success.style.display = 'none';
+            if (error) error.style.display = 'none';
+        }, 220);
+    }
+
+    function showEmailConfirmSuccessOverlay(title, message) {
+        console.log('[Email Confirm Success] Called with title:', title);
+        const overlay = document.getElementById('emailConfirmOverlay');
+        const loading = document.getElementById('emailConfirmLoading');
+        const success = document.getElementById('emailConfirmSuccess');
+        const error = document.getElementById('emailConfirmError');
+        
+        console.log('[Email Confirm Success] Elements found:', {
+            overlay: !!overlay,
+            loading: !!loading,
+            success: !!success,
+            error: !!error
+        });
+
+        if (!overlay || !loading || !success) {
+            console.warn('[Email Confirm] Missing overlay elements');
+            showToast('Email confirmed. You are now logged in.', 'success');
+            return;
+        }
+
+        // Update text content
+        const titleEl = success.querySelector('.email-confirm-title');
+        const subEl = success.querySelector('.email-confirm-sub');
+        console.log('[Email Confirm Success] Title element found:', !!titleEl);
+        console.log('[Email Confirm Success] Sub element found:', !!subEl);
+        
+        if (titleEl) titleEl.textContent = title || 'Email confirmed!';
+        if (subEl) subEl.textContent = message || 'You are now logged in and ready to shop.';
+
+        // Check parent visibility
+        const parent = overlay.parentElement;
+        console.log('[Email Confirm Success] Parent element:', parent?.tagName, 'display:', window.getComputedStyle(parent).display);
+        
+        // Hide all states first
+        console.log('[Email Confirm Success] Hiding loading, showing success...');
+        loading.style.display = 'none';
+        if (error) error.style.display = 'none';
+        
+        // Show success state - be very explicit
+        success.style.display = 'flex';
+        success.style.visibility = 'visible';
+        success.style.opacity = '1';
+        
+        overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible';
+        overlay.style.opacity = '1';
+        overlay.classList.remove('closing');
+        overlay.classList.add('active');
+        
+        // Ensure parent isn't hiding it
+        if (parent && parent.style.display === 'none') {
+            console.warn('[Email Confirm Success] Parent was hidden, showing it...');
+            parent.style.display = 'block';
+        }
+        
+        console.log('[Email Confirm Success] After setting styles - overlay display:', window.getComputedStyle(overlay).display);
+        console.log('[Email Confirm Success] Overlay should now be visible');
+
+    }
+
+    function queueEmailConfirmedBanner() {
+        try {
+            window.sessionStorage.setItem('keyzesEmailConfirmedBanner', '1');
+        } catch {}
+    }
+
+    function showQueuedEmailConfirmedBanner() {
+        console.log('[Email Confirm Queued] Checking for queued banner...');
+        try {
+            const isQueued = window.sessionStorage.getItem('keyzesEmailConfirmedBanner') === '1';
+            console.log('[Email Confirm Queued] Is queued:', isQueued);
+            if (!isQueued) return;
+            window.sessionStorage.removeItem('keyzesEmailConfirmedBanner');
+        } catch (e) {
+            console.warn('[Email Confirm Queued] sessionStorage error:', e);
+            return;
+        }
+        console.log('[Email Confirm Queued] Showing queued banner overlay...');
+        showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
     }
 
     async function handleTokenHashConfirmation() {
@@ -79,10 +180,29 @@
         console.log('[Email Confirm] token_hash check:', tokenHash ? 'FOUND' : 'NOT FOUND');
         if (!tokenHash) return false;
 
+        const overlay = document.getElementById('emailConfirmOverlay');
+        if (!overlay) {
+            console.error('[Email Confirm] Overlay element #emailConfirmOverlay not found in DOM');
+            return false;
+        }
+        console.log('[Email Confirm] Overlay found, showing...');
+
+        const loading = document.getElementById('emailConfirmLoading');
+        if (!loading) {
+            console.error('[Email Confirm] Loading element #emailConfirmLoading not found');
+            return false;
+        }
+
+        // Make overlay visible
+        overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible';
+        overlay.classList.add('active');
+        loading.style.display = 'flex';
+        console.log('[Email Confirm] Overlay visible, starting verification...');
+
         if (!authReady()) {
             console.error('[Email Confirm] Auth is not ready');
             showEmailConfirmError('Authentication is not configured. Please contact support.');
-            clearAuthCallbackUrl();
             return true;
         }
 
@@ -95,7 +215,6 @@
         if (error) {
             console.error('[Email Confirm] verifyOtp error:', error);
             showEmailConfirmError(error.message || 'Could not confirm your email. The link may have expired.');
-            clearAuthCallbackUrl();
             return true;
         }
 
@@ -104,8 +223,13 @@
             setCurrentCustomer(mapSupabaseUserToCustomer(data.user));
         }
 
+        // Persist the success banner request so it appears after redirect/login flow.
+        queueEmailConfirmedBanner();
+
         clearAuthCallbackUrl();
-        showToast('Email confirmed. You are now logged in.', 'success');
+        console.log('[Email Confirm] About to show success overlay...');
+        showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
+        console.log('[Email Confirm] Success overlay call complete');
         return true;
     }
 
@@ -157,7 +281,7 @@
 
         if (callbackParams.type === 'signup') {
             if (currentCustomer) {
-                showToast('Email confirmed. You are now logged in.', 'success');
+                showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
             } else {
                 openCustomerAuth('login', 'Email confirmed successfully. Log in to continue shopping.');
                 showToast('Email confirmed. You can now log in.', 'success');
@@ -1252,6 +1376,8 @@
         console.log('[Auth Init] Auth is ready, syncing session...');
         await syncCustomerFromSession();
         if (!isConfirmFlow) handleAuthCallbackFeedback();
+        console.log('[Auth Init] About to check for queued banner...');
+        showQueuedEmailConfirmedBanner();
         supabaseClient.auth.onAuthStateChange((_event, session) => {
             const user = session && session.user;
             setCurrentCustomer(mapSupabaseUserToCustomer(user));
@@ -2467,6 +2593,17 @@
             { id: uid(), title: 'Zelda Tears of the Kingdom', category: 'games', platform: 'nintendo', price: 44.99, originalPrice: 69.99, badge: 'hot', rating: 4.9, reviews: 3800, featured: true, image: null, description: 'The Legend of Zelda: Tears of the Kingdom digital key.', createdAt: Date.now() - 5, variants: [{name:'Standard',price:44.99},{name:'+ Expansion Pass',price:64.99}] },
         ];
     }
+
+    // Email confirmation overlay buttons
+    document.getElementById('emailConfirmGoBtn').addEventListener('click', () => {
+        hideEmailConfirmOverlay();
+        showStorefront();
+        showQueuedEmailConfirmedBanner();
+    });
+    document.getElementById('emailConfirmRetryBtn').addEventListener('click', () => {
+        hideEmailConfirmOverlay();
+        showStorefront();
+    });
 
     // ===========================
     //  INIT
