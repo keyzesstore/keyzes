@@ -12,6 +12,5 @@ window.KEYZES_CONFIG = {
     orderEmailFunctionUrl: 'YOUR_ORDER_EMAIL_FUNCTION_URL',
 
     // Optional: endpoint that deletes the authenticated customer account
-    // Example: https://YOUR_PROJECT_REF.supabase.co/functions/v1/delete-account
-    accountDeleteFunctionUrl: 'YOUR_ACCOUNT_DELETE_FUNCTION_URL'
+    accountDeleteFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/delete-account'
 };
