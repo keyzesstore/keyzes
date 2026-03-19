@@ -91,9 +91,20 @@
 
         if (!overlay || !loading || !success) {
             console.warn('[Email Confirm] Missing overlay elements');
+            // Write debug message directly to page
+            const debugDiv = document.createElement('div');
+            debugDiv.innerHTML = '<h2 style="color:red;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:yellow;padding:20px;z-index:99999;">OVERLAY ELEMENTS MISSING</h2>';
+            document.body.appendChild(debugDiv);
             showToast('Email confirmed. You are now logged in.', 'success');
             return;
         }
+
+        // Write debug message to page to prove we got here
+        const debugDiv = document.createElement('div');
+        debugDiv.id = 'emailConfirmDebug';
+        debugDiv.style.cssText = 'position:fixed;top:50px;right:10px;background:lime;color:black;padding:10px;z-index:100001;font-weight:bold;';
+        debugDiv.textContent = 'Overlay function running...';
+        document.body.appendChild(debugDiv);
 
         // Update text content
         const titleEl = success.querySelector('.email-confirm-title');
@@ -131,6 +142,23 @@
         
         console.log('[Email Confirm Success] After setting styles - overlay display:', window.getComputedStyle(overlay).display);
         console.log('[Email Confirm Success] Overlay should now be visible');
+        
+        // Update debug message
+        if (debugDiv) {
+            debugDiv.textContent = 'Overlay visible! Display: ' + window.getComputedStyle(overlay).display;
+        }
+        
+        // Ensure overlay stays visible for at least 5 seconds - prevent page manipulations from hiding it
+        const enforcedDisplayInterval = setInterval(() => {
+            if (overlay && overlay.parentElement) {
+                overlay.style.display = 'flex !important';
+                overlay.style.visibility = 'visible !important';
+                overlay.style.opacity = '1 !important';
+            }
+        }, 100);
+        
+        setTimeout(() => clearInterval(enforcedDisplayInterval), 5000);
+        console.log('[Email Confirm Success] Enforced display protection active for 5 seconds');
     }
 
     function queueEmailConfirmedBanner() {
@@ -155,10 +183,22 @@
     }
 
     async function handleTokenHashConfirmation() {
+        // Write debug marker immediately
+        if (!document.getElementById('emailConfirmStartDebug')) {
+            const debugDiv = document.createElement('div');
+            debugDiv.id = 'emailConfirmStartDebug';
+            debugDiv.style.cssText = 'position:fixed;top:100px;right:10px;background:lime;color:black;padding:10px;z-index:100002;font-weight:bold;font-size:14px;';
+            debugDiv.textContent = '✓ Email confirm function started';
+            document.body.appendChild(debugDiv);
+        }
+        
         const searchParams = new URLSearchParams(window.location.search || '');
         const tokenHash = searchParams.get('token_hash');
         console.log('[Email Confirm] token_hash check:', tokenHash ? 'FOUND' : 'NOT FOUND');
-        if (!tokenHash) return false;
+        if (!tokenHash) {
+            console.log('[Email Confirm] No token_hash, ending function');
+            return false;
+        }
 
         const overlay = document.getElementById('emailConfirmOverlay');
         if (!overlay) {
