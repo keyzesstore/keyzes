@@ -70,9 +70,23 @@
     }
 
     function showEmailConfirmError(msg) {
-        document.getElementById('emailConfirmLoading').style.display = 'none';
-        document.getElementById('emailConfirmErrorMsg').textContent = msg;
-        document.getElementById('emailConfirmError').style.display = 'flex';
+        const overlay = document.getElementById('emailConfirmOverlay');
+        const loading = document.getElementById('emailConfirmLoading');
+        const success = document.getElementById('emailConfirmSuccess');
+        const error = document.getElementById('emailConfirmError');
+        const errorMsg = document.getElementById('emailConfirmErrorMsg');
+        if (!overlay || !error || !errorMsg) {
+            showToast(msg || 'Could not confirm your email. The link may have expired.', 'error');
+            return;
+        }
+
+        if (loading) loading.style.display = 'none';
+        if (success) success.style.display = 'none';
+        errorMsg.textContent = msg;
+        error.style.display = 'flex';
+
+        overlay.classList.remove('closing');
+        overlay.classList.add('active');
     }
 
     function hideEmailConfirmOverlay() {
@@ -179,26 +193,6 @@
         const tokenHash = searchParams.get('token_hash');
         console.log('[Email Confirm] token_hash check:', tokenHash ? 'FOUND' : 'NOT FOUND');
         if (!tokenHash) return false;
-
-        const overlay = document.getElementById('emailConfirmOverlay');
-        if (!overlay) {
-            console.error('[Email Confirm] Overlay element #emailConfirmOverlay not found in DOM');
-            return false;
-        }
-        console.log('[Email Confirm] Overlay found, showing...');
-
-        const loading = document.getElementById('emailConfirmLoading');
-        if (!loading) {
-            console.error('[Email Confirm] Loading element #emailConfirmLoading not found');
-            return false;
-        }
-
-        // Make overlay visible
-        overlay.style.display = 'flex';
-        overlay.style.visibility = 'visible';
-        overlay.classList.add('active');
-        loading.style.display = 'flex';
-        console.log('[Email Confirm] Overlay visible, starting verification...');
 
         if (!authReady()) {
             console.error('[Email Confirm] Auth is not ready');
