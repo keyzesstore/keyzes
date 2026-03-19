@@ -30,6 +30,27 @@
     }
     function saveJSON(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
 
+    function normalizeEmail(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function sanitizeCustomer(customer) {
+        if (!customer) return null;
+        const email = normalizeEmail(customer.email);
+        const name = String(customer.name || '').trim();
+        if (!email || !name) return null;
+        return {
+            id: customer.id || uid(),
+            name,
+            email,
+        };
+    }
+
+    function customerFirstName(customer) {
+        const name = customer && customer.name ? customer.name.trim() : '';
+        return name ? name.split(/\s+/)[0] : 'Member';
+    }
+
     function isConfigured(value) {
         return typeof value === 'string' && value.trim() && !value.includes('YOUR_');
     }
@@ -128,6 +149,16 @@
     });
     let isAdmin = loadJSON(STORAGE_AUTH, false);
     let cart = loadJSON(STORAGE_CART, []);
+    let currentCustomer = null;
+    let pendingVerificationEmail = '';
+
+    const supabaseClient = (function createSupabaseClient() {
+        if (!isConfigured(APP_CONFIG.supabaseUrl) || !isConfigured(APP_CONFIG.supabaseAnonKey)) return null;
+        if (!window.supabase || typeof window.supabase.createClient !== 'function') return null;
+        return window.supabase.createClient(APP_CONFIG.supabaseUrl, APP_CONFIG.supabaseAnonKey);
+    })();
+
+    let pendingCartAction = null;
 
     // Migrate old cart items that lack cartKey
     cart = cart.filter(item => item && item.id).map(item => {
@@ -529,13 +560,24 @@
     $('#modalAddCart').addEventListener('click', () => {
         const pid = productModal.dataset.currentProductId;
         const variantIdx = parseInt(productModal.dataset.selectedVariant || '0');
-        if (pid) { addToCart(pid, variantIdx); closeProductModal(); }
+        if (pid) addToCart(pid, variantIdx, { closeModalOnSuccess: true, source: 'modal' });
     });
 
     // ---- Cart Logic ----
-    function addToCart(productId, variantIdx) {
+    function addToCart(productId, variantIdx, options = {}) {
         const p = products.find(pr => pr.id === productId);
         if (!p) return;
+
+        if (!options.skipAuth && !currentCustomer) {
+            pendingCartAction = {
+                productId,
+                variantIdx,
+                closeModalOnSuccess: !!options.closeModalOnSuccess,
+            };
+            openCustomerAuth('login', 'Log in or create an account to add items to your cart.');
+            return false;
+        }
+
         const vi = (p.variants && p.variants.length > 1) ? (variantIdx || 0) : 0;
         const cartKey = productId + '_v' + vi;
         const existing = cart.find(item => item.cartKey === cartKey);
@@ -546,6 +588,20 @@
         }
         saveJSON(STORAGE_CART, cart);
         updateCartBadge();
+        if (cartView.style.display !== 'none') renderCart();
+        if (options.closeModalOnSuccess) closeProductModal();
+        showToast('Item added to your cart.', 'success');
+        return true;
+    }
+
+    function runPendingCartAction() {
+        if (!pendingCartAction || !currentCustomer) return;
+        const queuedAction = pendingCartAction;
+        pendingCartAction = null;
+        addToCart(queuedAction.productId, queuedAction.variantIdx, {
+            skipAuth: true,
+            closeModalOnSuccess: queuedAction.closeModalOnSuccess,
+        });
     }
 
     function removeFromCart(cartKey) {
@@ -564,6 +620,7 @@
             return;
         }
         saveJSON(STORAGE_CART, cart);
+        updateCartBadge();
         renderCart();
     }
 
@@ -605,6 +662,7 @@
             cartItems.innerHTML = '';
             cartEmpty.style.display = '';
             cartSummary.style.display = 'none';
+            updateCheckoutState();
             return;
         }
 
@@ -644,6 +702,7 @@
 
         $('#cartSubtotal').textContent = '$' + subtotal.toFixed(2);
         $('#cartTotal').textContent = '$' + subtotal.toFixed(2);
+        updateCheckoutState();
 
         // Bind qty and remove buttons
         cartItems.querySelectorAll('[data-qty-action]').forEach(btn => {
@@ -665,21 +724,27 @@
     // Checkout button
     $('#checkoutBtn').addEventListener('click', async () => {
         if (!cart.length) {
-            alert('Your cart is empty.');
+            showToast('Your cart is empty.', 'error');
             return;
         }
 
-        const customerEmail = prompt('Enter your email for order confirmation:');
-        if (!customerEmail) return;
-
-        if (!customerEmail.includes('@')) {
-            alert('Please enter a valid email address.');
+        if (!currentCustomer) {
+            openCustomerAuth('login', 'Log in or create an account before checkout.');
+            updateCheckoutState();
             return;
         }
 
-        const result = await createRemoteOrder(customerEmail.trim(), cart);
+        const checkoutBtn = $('#checkoutBtn');
+        const originalLabel = checkoutBtn.textContent;
+        checkoutBtn.disabled = true;
+        checkoutBtn.textContent = 'Processing...';
+
+        const result = await createRemoteOrder(currentCustomer.email, cart);
+        checkoutBtn.textContent = originalLabel;
+        updateCheckoutState();
+
         if (!result.ok) {
-            alert('Checkout setup is incomplete: ' + result.reason);
+            showToast('Checkout setup is incomplete: ' + result.reason, 'error');
             return;
         }
 
@@ -687,7 +752,7 @@
         saveJSON(STORAGE_CART, cart);
         renderCart();
         updateCartBadge();
-        alert('Order placed successfully! Order ID: ' + result.orderId);
+        showToast('Order placed successfully. Order ID: ' + result.orderId, 'success');
     });
 
     // Initialize cart badge
@@ -699,7 +764,7 @@
         const cartBtn = e.target.closest('[data-cart-stop]');
         if (cartBtn) {
             const card = cartBtn.closest('.product-card');
-            if (card && card.dataset.productId) addToCart(card.dataset.productId);
+            if (card && card.dataset.productId) addToCart(card.dataset.productId, 0, { source: 'grid' });
             return;
         }
 
@@ -714,6 +779,9 @@
         if (e.key === 'Escape' && productModal.classList.contains('open')) {
             closeProductModal();
         }
+        if (e.key === 'Escape' && customerAuthOverlay.classList.contains('open')) {
+            closeCustomerAuth();
+        }
     });
 
     // ===========================
@@ -727,6 +795,270 @@
     const storefrontView = $('#storefrontView');
     const siteFooter = $('#siteFooter');
     const cartView = $('#cartView');
+    const customerAuthOverlay = $('#customerAuthOverlay');
+    const customerAuthTitle = $('#customerAuthTitle');
+    const customerAuthIntro = $('#customerAuthIntro');
+    const customerLoginForm = $('#customerLoginForm');
+    const customerSignupForm = $('#customerSignupForm');
+    const customerLoginError = $('#customerLoginError');
+    const customerSignupError = $('#customerSignupError');
+    const customerGuestActions = $('#customerGuestActions');
+    const customerSessionPanel = $('#customerSessionPanel');
+    const mobileGuestActions = $('#mobileGuestActions');
+    const mobileSessionPanel = $('#mobileSessionPanel');
+    const cartAuthNotice = $('#cartAuthNotice');
+    const checkoutBtn = $('#checkoutBtn');
+    const checkoutNote = document.querySelector('.checkout-note');
+    const customerVerifyBox = $('#customerVerifyBox');
+    const customerVerifyText = $('#customerVerifyText');
+    const customerResendVerifyBtn = $('#customerResendVerifyBtn');
+    const customerVerifyState = $('#customerVerifyState');
+    const customerVerifyStateText = $('#customerVerifyStateText');
+    const customerVerifyStateResendBtn = $('#customerVerifyStateResendBtn');
+    const customerVerifyBackToLoginBtn = $('#customerVerifyBackToLoginBtn');
+    const customerLoginEmail = $('#customerLoginEmail');
+    const customerLoginPassword = $('#customerLoginPassword');
+    const customerSignupName = $('#customerSignupName');
+    const customerSignupEmail = $('#customerSignupEmail');
+    const customerSignupPassword = $('#customerSignupPassword');
+    const customerSignupConfirm = $('#customerSignupConfirm');
+
+    function isValidEmail(value) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+    }
+
+    function setInlineFieldError(input, message) {
+        if (!input) return;
+        const group = input.closest('.admin-form-group');
+        if (!group) return;
+        let errorEl = group.querySelector('.customer-inline-error');
+        if (!errorEl) {
+            errorEl = document.createElement('div');
+            errorEl.className = 'customer-inline-error';
+            group.appendChild(errorEl);
+        }
+        errorEl.textContent = message || '';
+        group.classList.toggle('has-inline-error', !!message);
+    }
+
+    function clearInlineErrors(form) {
+        if (!form) return;
+        form.querySelectorAll('.admin-form-group').forEach(group => {
+            group.classList.remove('has-inline-error');
+            const errorEl = group.querySelector('.customer-inline-error');
+            if (errorEl) errorEl.textContent = '';
+        });
+    }
+
+    function validateLoginFields() {
+        const email = normalizeEmail(customerLoginEmail.value);
+        const password = customerLoginPassword.value;
+        let valid = true;
+
+        if (!email || !isValidEmail(email)) {
+            setInlineFieldError(customerLoginEmail, 'Enter a valid email address.');
+            valid = false;
+        } else {
+            setInlineFieldError(customerLoginEmail, '');
+        }
+
+        if (!password) {
+            setInlineFieldError(customerLoginPassword, 'Enter your password.');
+            valid = false;
+        } else {
+            setInlineFieldError(customerLoginPassword, '');
+        }
+
+        return valid;
+    }
+
+    function validateSignupFields() {
+        const name = customerSignupName.value.trim();
+        const email = normalizeEmail(customerSignupEmail.value);
+        const password = customerSignupPassword.value;
+        const confirmPassword = customerSignupConfirm.value;
+        let valid = true;
+
+        if (name.length < 2) {
+            setInlineFieldError(customerSignupName, 'Enter your full name.');
+            valid = false;
+        } else {
+            setInlineFieldError(customerSignupName, '');
+        }
+
+        if (!email || !isValidEmail(email)) {
+            setInlineFieldError(customerSignupEmail, 'Enter a valid email address.');
+            valid = false;
+        } else {
+            setInlineFieldError(customerSignupEmail, '');
+        }
+
+        if (password.length < 6) {
+            setInlineFieldError(customerSignupPassword, 'Use at least 6 characters.');
+            valid = false;
+        } else {
+            setInlineFieldError(customerSignupPassword, '');
+        }
+
+        if (!confirmPassword) {
+            setInlineFieldError(customerSignupConfirm, 'Confirm your password.');
+            valid = false;
+        } else if (password !== confirmPassword) {
+            setInlineFieldError(customerSignupConfirm, 'Passwords do not match.');
+            valid = false;
+        } else {
+            setInlineFieldError(customerSignupConfirm, '');
+        }
+
+        return valid;
+    }
+
+    function mapSupabaseUserToCustomer(user) {
+        if (!user || !user.email) return null;
+        const fullName = user.user_metadata && user.user_metadata.full_name;
+        const fallbackName = user.email.split('@')[0];
+        return sanitizeCustomer({
+            id: user.id,
+            email: user.email,
+            name: fullName || fallbackName,
+        });
+    }
+
+    function authReady() {
+        return !!supabaseClient;
+    }
+
+    function setCurrentCustomer(customer) {
+        currentCustomer = sanitizeCustomer(customer);
+        renderCustomerState();
+    }
+
+    function showVerifyBox(message, email) {
+        if (!customerVerifyBox) return;
+        pendingVerificationEmail = normalizeEmail(email || pendingVerificationEmail);
+        customerVerifyText.textContent = message;
+        customerVerifyBox.style.display = '';
+        customerResendVerifyBtn.disabled = !pendingVerificationEmail;
+    }
+
+    function hideVerifyBox() {
+        if (!customerVerifyBox) return;
+        customerVerifyBox.style.display = 'none';
+        customerVerifyText.textContent = '';
+    }
+
+    function enterVerificationState(email) {
+        pendingVerificationEmail = normalizeEmail(email || pendingVerificationEmail);
+        customerVerifyStateText.textContent = 'We sent a verification link to ' + pendingVerificationEmail + '. Please confirm your email, then come back and log in.';
+        customerVerifyState.style.display = '';
+        customerVerifyStateResendBtn.disabled = !pendingVerificationEmail;
+        customerLoginForm.style.display = 'none';
+        customerSignupForm.style.display = 'none';
+        customerAuthTitle.textContent = 'Confirm Your Email';
+    }
+
+    function exitVerificationState() {
+        customerVerifyState.style.display = 'none';
+        customerVerifyStateText.textContent = '';
+    }
+
+    function updateCheckoutState() {
+        const isSignedIn = !!currentCustomer;
+        if (cartAuthNotice) cartAuthNotice.style.display = !isSignedIn && cart.length ? '' : 'none';
+        if (checkoutBtn) {
+            checkoutBtn.disabled = !isSignedIn || !cart.length;
+            checkoutBtn.textContent = isSignedIn ? 'Proceed to Checkout' : 'Log In to Checkout';
+        }
+        if (checkoutNote) {
+            checkoutNote.textContent = isSignedIn
+                ? 'Order confirmation will be sent to ' + currentCustomer.email + '.'
+                : 'Sign in to place your order and save your cart.';
+        }
+    }
+
+    function renderCustomerState() {
+        const isSignedIn = !!currentCustomer;
+        const displayName = isSignedIn ? customerFirstName(currentCustomer) : 'Guest';
+
+        customerGuestActions.style.display = isSignedIn ? 'none' : 'flex';
+        customerSessionPanel.style.display = isSignedIn ? 'flex' : 'none';
+        mobileGuestActions.style.display = isSignedIn ? 'none' : 'flex';
+        mobileSessionPanel.style.display = isSignedIn ? 'flex' : 'none';
+
+        $('#customerSessionName').textContent = displayName;
+        $('#mobileSessionName').textContent = displayName;
+        updateCheckoutState();
+    }
+
+    function setAuthMode(mode) {
+        const loginMode = mode !== 'signup';
+        exitVerificationState();
+        customerLoginForm.style.display = loginMode ? '' : 'none';
+        customerSignupForm.style.display = loginMode ? 'none' : '';
+        clearInlineErrors(customerLoginForm);
+        clearInlineErrors(customerSignupForm);
+        customerLoginError.textContent = '';
+        customerSignupError.textContent = '';
+        hideVerifyBox();
+        $$('.customer-auth-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.authMode === (loginMode ? 'login' : 'signup'));
+        });
+        customerAuthTitle.textContent = loginMode ? 'Access Your Account' : 'Create Your Account';
+    }
+
+    function openCustomerAuth(mode, introText) {
+        setAuthMode(mode);
+        customerLoginError.textContent = '';
+        customerSignupError.textContent = '';
+        customerAuthIntro.textContent = introText || 'Sign in or create an account to start building your cart.';
+        hideVerifyBox();
+        customerAuthOverlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        const focusTarget = mode === 'signup' ? $('#customerSignupName') : $('#customerLoginEmail');
+        if (focusTarget) window.setTimeout(() => focusTarget.focus(), 30);
+    }
+
+    function closeCustomerAuth() {
+        customerAuthOverlay.classList.remove('open');
+        document.body.style.overflow = productModal.classList.contains('open') ? 'hidden' : '';
+    }
+
+    async function syncCustomerFromSession() {
+        if (!authReady()) {
+            setCurrentCustomer(null);
+            return;
+        }
+        const { data, error } = await supabaseClient.auth.getSession();
+        if (error) {
+            setCurrentCustomer(null);
+            return;
+        }
+        const user = data && data.session && data.session.user;
+        setCurrentCustomer(mapSupabaseUserToCustomer(user));
+    }
+
+    async function initializeCustomerAuth() {
+        if (!authReady()) {
+            setCurrentCustomer(null);
+            return;
+        }
+        await syncCustomerFromSession();
+        supabaseClient.auth.onAuthStateChange((_event, session) => {
+            const user = session && session.user;
+            setCurrentCustomer(mapSupabaseUserToCustomer(user));
+        });
+    }
+
+    function handleCustomerAuthSuccess(customer, message) {
+        setCurrentCustomer(customer);
+        pendingVerificationEmail = '';
+        exitVerificationState();
+        hideVerifyBox();
+        closeCustomerAuth();
+        showToast(message, 'success');
+        runPendingCartAction();
+        if (cartView.style.display !== 'none') renderCart();
+    }
 
     // Show / hide views
     function showStorefront() {
@@ -736,6 +1068,198 @@
         siteFooter.style.display = '';
         renderProducts();
     }
+
+    [
+        ['openAuthBtn', 'login'],
+        ['mobileAuthBtn', 'login'],
+        ['cartAuthBtn', 'login'],
+    ].forEach(([id, mode]) => {
+        const button = $('#' + id);
+        if (!button) return;
+        button.addEventListener('click', () => openCustomerAuth(mode, 'Sign in or create an account to continue shopping on Keyzes.'));
+    });
+
+    [$('#customerLogoutBtn'), $('#mobileLogoutBtn')].forEach(button => {
+        if (!button) return;
+        button.addEventListener('click', async () => {
+            if (authReady()) {
+                await supabaseClient.auth.signOut();
+            }
+            setCurrentCustomer(null);
+            showToast('You have been logged out.', 'info');
+            if (cartView.style.display !== 'none') renderCart();
+        });
+    });
+
+    $('#customerAuthClose').addEventListener('click', closeCustomerAuth);
+    customerAuthOverlay.addEventListener('click', e => { if (e.target === customerAuthOverlay) closeCustomerAuth(); });
+
+    $$('[data-password-toggle]').forEach(button => {
+        button.addEventListener('click', () => {
+            const target = document.getElementById(button.dataset.target || '');
+            if (!target) return;
+            const reveal = target.type === 'password';
+            target.type = reveal ? 'text' : 'password';
+            button.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+        });
+    });
+
+    customerResendVerifyBtn.addEventListener('click', async () => {
+        if (!authReady()) {
+            showToast('Supabase auth is not configured yet.', 'error');
+            return;
+        }
+        if (!pendingVerificationEmail) {
+            showToast('No email found to resend verification.', 'error');
+            return;
+        }
+
+        customerResendVerifyBtn.disabled = true;
+        customerVerifyStateResendBtn.disabled = true;
+        const { error } = await supabaseClient.auth.resend({
+            type: 'signup',
+            email: pendingVerificationEmail,
+            options: { emailRedirectTo: APP_CONFIG.authRedirectUrl || window.location.href.split('#')[0] },
+        });
+        customerResendVerifyBtn.disabled = false;
+        customerVerifyStateResendBtn.disabled = false;
+
+        if (error) {
+            showToast('Could not resend verification email. ' + error.message, 'error');
+            return;
+        }
+        showVerifyBox('Verification email sent again to ' + pendingVerificationEmail + '. Check your inbox or spam folder.', pendingVerificationEmail);
+        if (customerVerifyState.style.display !== 'none') {
+            customerVerifyStateText.textContent = 'Verification email resent to ' + pendingVerificationEmail + '. After confirming, return and log in.';
+        }
+    });
+
+    customerVerifyStateResendBtn.addEventListener('click', () => customerResendVerifyBtn.click());
+    customerVerifyBackToLoginBtn.addEventListener('click', () => {
+        setAuthMode('login');
+        customerLoginError.textContent = '';
+        customerLoginEmail.value = pendingVerificationEmail || customerLoginEmail.value;
+        customerLoginEmail.focus();
+    });
+
+    $$('.customer-auth-tab').forEach(tab => {
+        tab.addEventListener('click', () => setAuthMode(tab.dataset.authMode));
+    });
+
+    customerLoginForm.addEventListener('submit', e => {
+        e.preventDefault();
+        if (!authReady()) {
+            customerLoginError.textContent = 'Supabase auth is not configured yet.';
+            return;
+        }
+        if (!validateLoginFields()) {
+            customerLoginError.textContent = 'Please fix the highlighted fields.';
+            return;
+        }
+        const email = normalizeEmail(customerLoginEmail.value);
+        const password = customerLoginPassword.value;
+
+        customerLoginError.textContent = '';
+        hideVerifyBox();
+
+        supabaseClient.auth.signInWithPassword({ email, password }).then(({ data, error }) => {
+            if (error) {
+                const msg = (error.message || '').toLowerCase();
+                if (msg.includes('not confirmed') || msg.includes('email_not_confirmed')) {
+                    customerLoginError.textContent = 'Your email is not verified yet.';
+                    showVerifyBox('Please verify your email before logging in. If needed, resend the verification email.', email);
+                    return;
+                }
+                customerLoginError.textContent = error.message || 'Login failed.';
+                return;
+            }
+
+            const user = data && data.user;
+            if (!user) {
+                customerLoginError.textContent = 'Login failed.';
+                return;
+            }
+
+            pendingVerificationEmail = '';
+            customerLoginError.textContent = '';
+            clearInlineErrors(customerLoginForm);
+            customerLoginForm.reset();
+            handleCustomerAuthSuccess(mapSupabaseUserToCustomer(user), 'Welcome back. You are now logged in.');
+        });
+    });
+
+    customerSignupForm.addEventListener('submit', e => {
+        e.preventDefault();
+        if (!authReady()) {
+            customerSignupError.textContent = 'Supabase auth is not configured yet.';
+            return;
+        }
+        if (!validateSignupFields()) {
+            customerSignupError.textContent = 'Please fix the highlighted fields.';
+            return;
+        }
+        const name = customerSignupName.value.trim();
+        const email = normalizeEmail(customerSignupEmail.value);
+        const password = customerSignupPassword.value;
+
+        customerSignupError.textContent = '';
+        hideVerifyBox();
+
+        supabaseClient.auth.signUp({
+            email,
+            password,
+            options: {
+                data: { full_name: name },
+                emailRedirectTo: APP_CONFIG.authRedirectUrl || window.location.href.split('#')[0],
+            },
+        }).then(({ data, error }) => {
+            if (error) {
+                customerSignupError.textContent = error.message || 'Signup failed.';
+                return;
+            }
+
+            const user = data && data.user;
+            const hasSession = !!(data && data.session);
+            if (!user) {
+                customerSignupError.textContent = 'Signup failed.';
+                return;
+            }
+
+            if (!hasSession) {
+                pendingVerificationEmail = email;
+                showVerifyBox('Account created. Verify your email to activate login, then return here and sign in.', email);
+                enterVerificationState(email);
+                customerSignupError.textContent = '';
+                clearInlineErrors(customerSignupForm);
+                showToast('Account created. Check your email to verify your account.', 'info');
+                return;
+            }
+
+            pendingVerificationEmail = '';
+            customerSignupError.textContent = '';
+            clearInlineErrors(customerSignupForm);
+            customerSignupForm.reset();
+            handleCustomerAuthSuccess(mapSupabaseUserToCustomer(user), 'Account created successfully.');
+        });
+    });
+
+    [customerLoginEmail, customerLoginPassword].forEach(input => {
+        input.addEventListener('input', () => {
+            validateLoginFields();
+            if (customerLoginError.textContent === 'Please fix the highlighted fields.') {
+                customerLoginError.textContent = '';
+            }
+        });
+    });
+
+    [customerSignupName, customerSignupEmail, customerSignupPassword, customerSignupConfirm].forEach(input => {
+        input.addEventListener('input', () => {
+            validateSignupFields();
+            if (customerSignupError.textContent === 'Please fix the highlighted fields.') {
+                customerSignupError.textContent = '';
+            }
+        });
+    });
 
     function showCart() {
         storefrontView.style.display = 'none';
@@ -1527,6 +2051,7 @@
     // ===========================
 
     renderProducts();
+    initializeCustomerAuth();
 
     // If admin session was saved, keep auth state but don't auto-open panel
     // They can click the gear icon to open it

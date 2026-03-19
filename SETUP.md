@@ -79,6 +79,7 @@ Edit `config.js` and set:
 
 - `supabaseUrl`: from Supabase project settings
 - `supabaseAnonKey`: from Supabase API settings
+- `authRedirectUrl`: your production site URL (used in email verification links), e.g. `https://keyzes.com`
 - `orderEmailFunctionUrl`: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-order-email`
 
 Important:
@@ -93,18 +94,41 @@ Suggested origins:
 - `https://www.keyzes.com`
 - Cloudflare Pages preview URL
 
-## 9) Checkout behavior now
+## 9) Enable Supabase Auth email verification
 
-- Checkout asks for customer email.
+In Supabase dashboard:
+1. Authentication -> Providers -> Email -> enable Email provider.
+2. Keep "Confirm email" enabled.
+3. Set Site URL to your production URL (for example `https://keyzes.com`).
+4. Add additional redirect URLs if needed (preview URL, `https://www.keyzes.com`).
+
+To send verification emails with Resend:
+1. In Resend, generate an API key and verify your sending domain.
+2. In Supabase dashboard -> Project Settings -> Auth -> SMTP settings.
+3. Configure SMTP using Resend credentials:
+   - Host: `smtp.resend.com`
+   - Port: `465` (SSL) or `587` (TLS)
+   - Username: `resend`
+   - Password: your Resend API key
+   - Sender email: a verified Resend sender (for example `noreply@mail.keyzes.com`)
+4. Save and send a test auth email from Supabase.
+
+## 10) Checkout behavior now
+
+- Customer must sign up/login using Supabase Auth.
+- Signup sends verification email; UI includes a "Resend verification email" action.
+- Checkout uses the logged-in customer email automatically.
 - Creates `orders` + `order_items` in Supabase.
 - Calls `send-order-email` function.
 - Clears cart after successful order creation.
 
-## 10) Final verification checklist
+## 11) Final verification checklist
 
 1. Open deployed site.
-2. Add product to cart.
-3. Checkout with email.
-4. Confirm a new row in `orders` table.
-5. Confirm rows in `order_items`.
-6. Confirm confirmation email is received.
+2. Sign up with a new email.
+3. Verify email from inbox (or use resend button and verify).
+4. Log in and add product to cart.
+5. Complete checkout.
+6. Confirm a new row in `orders` table.
+7. Confirm rows in `order_items`.
+8. Confirm confirmation email is received.

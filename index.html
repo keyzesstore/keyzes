@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="photos/keyzes-logo-no-backround.png">
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -25,6 +26,18 @@
             </div>
             <nav class="nav-links" id="storeNavLinks">
                 <a href="#" class="nav-link active" data-nav="store">Store</a>
+                <div class="customer-auth-nav">
+                    <div class="customer-guest-actions" id="customerGuestActions">
+                        <button type="button" class="nav-auth-btn nav-auth-btn-primary" id="openAuthBtn">Login / Sign up</button>
+                    </div>
+                    <div class="customer-session-panel" id="customerSessionPanel" style="display:none;">
+                        <div class="customer-session-chip">
+                            <span class="customer-session-label">Signed in as</span>
+                            <strong id="customerSessionName">Guest</strong>
+                        </div>
+                        <button type="button" class="nav-auth-btn" id="customerLogoutBtn">Log Out</button>
+                    </div>
+                </div>
                 <a href="#" class="nav-link cart-link" data-nav="cart">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
                         <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
@@ -54,6 +67,13 @@
             </div>
             <a href="#" class="mobile-nav-link active" data-nav="store">Store</a>
             <a href="#" class="mobile-nav-link" data-nav="cart">Cart</a>
+            <div class="mobile-auth-actions" id="mobileGuestActions">
+                <button type="button" class="mobile-auth-btn mobile-auth-btn-primary" id="mobileAuthBtn">Login / Sign up</button>
+            </div>
+            <div class="mobile-session-panel" id="mobileSessionPanel" style="display:none;">
+                <span class="mobile-session-copy">Signed in as <strong id="mobileSessionName">Guest</strong></span>
+                <button type="button" class="mobile-auth-btn" id="mobileLogoutBtn">Log Out</button>
+            </div>
             <a href="#" class="mobile-nav-link" data-nav="admin">Admin Panel</a>
         </nav>
     </header>
@@ -199,6 +219,15 @@
                     <p>Browse the store and add some items!</p>
                 </div>
                 <div class="cart-summary" id="cartSummary" style="display:none;">
+                    <div class="cart-auth-notice" id="cartAuthNotice" style="display:none;">
+                        <div>
+                            <strong>Log in to checkout</strong>
+                            <p>You need an account before we can place your order.</p>
+                        </div>
+                        <div class="cart-auth-actions">
+                            <button type="button" class="nav-auth-btn nav-auth-btn-primary" id="cartAuthBtn">Login / Sign up</button>
+                        </div>
+                    </div>
                     <div class="cart-summary-row">
                         <span>Subtotal</span>
                         <span id="cartSubtotal">$0.00</span>
@@ -574,6 +603,166 @@
             <div class="confirm-modal-actions">
                 <button class="admin-btn admin-btn-ghost" id="confirmCancel">Cancel</button>
                 <button class="admin-btn admin-btn-danger" id="confirmOk">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Auth Modal -->
+    <div class="customer-auth-overlay" id="customerAuthOverlay">
+        <div class="customer-auth-modal">
+            <button class="customer-auth-close" id="customerAuthClose">&times;</button>
+            <div class="customer-auth-layout">
+                <aside class="customer-auth-art">
+                    <div class="customer-auth-particles" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                    <img src="photos/keyzes-logo-no-backround.png" alt="Keyzes" class="customer-auth-art-logo">
+                    <span class="customer-auth-art-kicker">Keyzes Members</span>
+                    <h3>Faster access, cleaner checkout, your cart saved.</h3>
+                    <p>Use one account to jump back into your store session whenever you return.</p>
+                    <div class="customer-auth-art-cards">
+                        <div class="customer-auth-art-card">
+                            <strong>Instant</strong>
+                            <span>Login or sign up in a few seconds.</span>
+                        </div>
+                        <div class="customer-auth-art-card">
+                            <strong>Reliable</strong>
+                            <span>Checkout uses your saved account email.</span>
+                        </div>
+                    </div>
+                </aside>
+                <div class="customer-auth-panel">
+                    <div class="customer-auth-header">
+                        <img src="photos/keyzes-logo-no-backround.png" alt="Keyzes" class="admin-login-logo">
+                        <h2 id="customerAuthTitle">Access Your Account</h2>
+                        <p id="customerAuthIntro">Sign in or create an account to start building your cart.</p>
+                    </div>
+                    <div class="customer-auth-meta">
+                        <span class="customer-auth-pill">Secure access</span>
+                        <span class="customer-auth-pill">Fast checkout</span>
+                        <span class="customer-auth-pill">Saved cart</span>
+                    </div>
+                    <div class="customer-auth-tabs">
+                        <button type="button" class="customer-auth-tab active" data-auth-mode="login">Log In</button>
+                        <button type="button" class="customer-auth-tab" data-auth-mode="signup">Sign Up</button>
+                    </div>
+                    <div class="customer-verify-box" id="customerVerifyBox" style="display:none;">
+                        <div class="customer-verify-copy" id="customerVerifyText"></div>
+                        <button type="button" class="customer-verify-btn" id="customerResendVerifyBtn">Resend verification email</button>
+                    </div>
+                    <div class="customer-verify-state" id="customerVerifyState" style="display:none;">
+                        <div class="customer-verify-state-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+                                <path d="M4 6h16v12H4z"/>
+                                <path d="m4 7 8 6 8-6"/>
+                            </svg>
+                        </div>
+                        <h3>Verify Your Email</h3>
+                        <p id="customerVerifyStateText">We sent a verification link to your email address.</p>
+                        <div class="customer-verify-state-actions">
+                            <button type="button" class="customer-verify-btn" id="customerVerifyStateResendBtn">Resend verification email</button>
+                            <button type="button" class="customer-verify-login-btn" id="customerVerifyBackToLoginBtn">I verified, go to log in</button>
+                        </div>
+                    </div>
+                    <form id="customerLoginForm" class="customer-auth-form">
+                        <div class="admin-form-group">
+                            <label for="customerLoginEmail">Email</label>
+                            <div class="customer-input-wrap">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M4 6h16v12H4z"/>
+                                        <path d="m4 7 8 6 8-6"/>
+                                    </svg>
+                                </span>
+                                <input type="email" id="customerLoginEmail" placeholder="you@example.com" autocomplete="email" required>
+                            </div>
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="customerLoginPassword">Password</label>
+                            <div class="customer-input-wrap customer-input-wrap-password">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <rect x="4" y="11" width="16" height="9" rx="2"/>
+                                        <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
+                                    </svg>
+                                </span>
+                                <input type="password" id="customerLoginPassword" placeholder="Password" autocomplete="current-password" required>
+                                <button type="button" class="customer-password-toggle" data-password-toggle data-target="customerLoginPassword" aria-label="Show password">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="admin-login-error" id="customerLoginError"></div>
+                        <button type="submit" class="admin-login-btn">Log In</button>
+                    </form>
+                    <form id="customerSignupForm" class="customer-auth-form" style="display:none;">
+                        <div class="admin-form-group">
+                            <label for="customerSignupName">Full Name</label>
+                            <div class="customer-input-wrap">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M20 21a8 8 0 0 0-16 0"/>
+                                        <circle cx="12" cy="8" r="4"/>
+                                    </svg>
+                                </span>
+                                <input type="text" id="customerSignupName" placeholder="Your name" autocomplete="name" required>
+                            </div>
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="customerSignupEmail">Email</label>
+                            <div class="customer-input-wrap">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M4 6h16v12H4z"/>
+                                        <path d="m4 7 8 6 8-6"/>
+                                    </svg>
+                                </span>
+                                <input type="email" id="customerSignupEmail" placeholder="you@example.com" autocomplete="email" required>
+                            </div>
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="customerSignupPassword">Password</label>
+                            <div class="customer-input-wrap customer-input-wrap-password">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <rect x="4" y="11" width="16" height="9" rx="2"/>
+                                        <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
+                                    </svg>
+                                </span>
+                                <input type="password" id="customerSignupPassword" placeholder="Create a password" autocomplete="new-password" required>
+                                <button type="button" class="customer-password-toggle" data-password-toggle data-target="customerSignupPassword" aria-label="Show password">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="customerSignupConfirm">Confirm Password</label>
+                            <div class="customer-input-wrap customer-input-wrap-password">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="m9 12 2 2 4-4"/>
+                                        <rect x="4" y="4" width="16" height="16" rx="3"/>
+                                    </svg>
+                                </span>
+                                <input type="password" id="customerSignupConfirm" placeholder="Confirm password" autocomplete="new-password" required>
+                                <button type="button" class="customer-password-toggle" data-password-toggle data-target="customerSignupConfirm" aria-label="Show password">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="admin-login-error" id="customerSignupError"></div>
+                        <button type="submit" class="admin-login-btn">Create Account</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
