@@ -1,7 +1,7 @@
 window.KEYZES_CONFIG = {
     // Public browser-safe values only
-    supabaseUrl: 'YOUR_SUPABASE_URL',
-    supabaseAnonKey: 'YOUR_SUPABASE_ANON_KEY',
+    supabaseUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co',
+    supabaseAnonKey: 'sb_publishable_dOTm7wbgndt8LFxgPiB06A_mER4lhNx',
 
     // Supabase Edge Function URL (optional, for confirmation emails)
     // Example: https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-order-email
