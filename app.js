@@ -69,6 +69,45 @@
         }
     }
 
+    function showEmailConfirmError(msg) {
+        document.getElementById('emailConfirmLoading').style.display = 'none';
+        document.getElementById('emailConfirmErrorMsg').textContent = msg;
+        document.getElementById('emailConfirmError').style.display = 'flex';
+    }
+
+    async function handleTokenHashConfirmation() {
+        const searchParams = new URLSearchParams(window.location.search || '');
+        const tokenHash = searchParams.get('token_hash');
+        if (!tokenHash) return false;
+
+        const overlay = document.getElementById('emailConfirmOverlay');
+        overlay.classList.add('active');
+
+        if (!authReady()) {
+            showEmailConfirmError('Authentication is not configured. Please contact support.');
+            return true;
+        }
+
+        const { data, error } = await supabaseClient.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: 'email',
+        });
+
+        if (error) {
+            showEmailConfirmError(error.message || 'Could not confirm your email. The link may have expired.');
+            return true;
+        }
+
+        if (data && data.user) {
+            setCurrentCustomer(mapSupabaseUserToCustomer(data.user));
+        }
+
+        clearAuthCallbackUrl();
+        document.getElementById('emailConfirmLoading').style.display = 'none';
+        document.getElementById('emailConfirmSuccess').style.display = 'flex';
+        return true;
+    }
+
     function getAuthCallbackParams() {
         const searchParams = new URLSearchParams(window.location.search || '');
         const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
@@ -1197,12 +1236,17 @@
     }
 
     async function initializeCustomerAuth() {
+        // Token-hash confirmation must run before anything else so the overlay
+        // is shown immediately if the user landed from a confirmation email.
+        const isConfirmFlow = await handleTokenHashConfirmation();
+
         if (!authReady()) {
             setCurrentCustomer(null);
+            if (!isConfirmFlow) handleAuthCallbackFeedback();
             return;
         }
         await syncCustomerFromSession();
-        handleAuthCallbackFeedback();
+        if (!isConfirmFlow) handleAuthCallbackFeedback();
         supabaseClient.auth.onAuthStateChange((_event, session) => {
             const user = session && session.user;
             setCurrentCustomer(mapSupabaseUserToCustomer(user));
@@ -2418,6 +2462,16 @@
             { id: uid(), title: 'Zelda Tears of the Kingdom', category: 'games', platform: 'nintendo', price: 44.99, originalPrice: 69.99, badge: 'hot', rating: 4.9, reviews: 3800, featured: true, image: null, description: 'The Legend of Zelda: Tears of the Kingdom digital key.', createdAt: Date.now() - 5, variants: [{name:'Standard',price:44.99},{name:'+ Expansion Pass',price:64.99}] },
         ];
     }
+
+    // Email confirmation overlay buttons
+    document.getElementById('emailConfirmGoBtn').addEventListener('click', () => {
+        document.getElementById('emailConfirmOverlay').classList.remove('active');
+        showStorefront();
+    });
+    document.getElementById('emailConfirmRetryBtn').addEventListener('click', () => {
+        document.getElementById('emailConfirmOverlay').classList.remove('active');
+        showStorefront();
+    });
 
     // ===========================
     //  INIT

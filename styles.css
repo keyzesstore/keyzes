@@ -3488,4 +3488,126 @@ a {
     gap: 12px;
     justify-content: flex-end;
     padding: 16px 24px;
+
+/* ===========================
+   Email Confirmation Overlay
+=========================== */
+
+.email-confirm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--bg-primary);
+    align-items: center;
+    justify-content: center;
+}
+
+.email-confirm-overlay.active {
+    display: flex;
+}
+
+.email-confirm-card {
+    text-align: center;
+    padding: 48px 32px;
+    max-width: 420px;
+    width: 100%;
+    animation: fadeInUp 0.45s ease;
+}
+
+.email-confirm-logo {
+    height: 52px;
+    margin-bottom: 40px;
+    object-fit: contain;
+}
+
+.email-confirm-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+}
+
+/* Spinner */
+.email-confirm-spinner {
+    width: 52px;
+    height: 52px;
+    border: 3px solid var(--border);
+    border-top-color: #f37920;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 24px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Icon badge (success / error) */
+.email-confirm-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    font-size: 28px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.email-confirm-icon-success {
+    background: linear-gradient(135deg, #f37920, #ffc844);
+    color: #fff;
+}
+
+.email-confirm-icon-error {
+    background: var(--bg-card);
+    border: 2px solid #e53e3e;
+    color: #e53e3e;
+}
+
+.email-confirm-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 10px;
+    letter-spacing: -0.3px;
+}
+
+.email-confirm-sub {
+    font-size: 15px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 28px;
+    max-width: 320px;
+}
+
+.email-confirm-btn {
+    background: linear-gradient(135deg, #f37920, #ffc844);
+    color: #fff;
+    border: none;
+    padding: 15px 44px;
+    border-radius: var(--radius-md);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.1px;
+    transition: opacity 0.2s;
+}
+
+.email-confirm-btn:hover {
+    opacity: 0.88;
+}
+
+.email-confirm-btn-ghost {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+
+.email-confirm-btn-ghost:hover {
+    opacity: 1;
+    background: var(--bg-card-hover);
+}
 }
