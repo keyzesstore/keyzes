@@ -75,16 +75,9 @@
         document.getElementById('emailConfirmError').style.display = 'flex';
     }
 
-    let emailConfirmAutoCloseTimer = null;
-
     function hideEmailConfirmOverlay() {
         const overlay = document.getElementById('emailConfirmOverlay');
         if (!overlay) return;
-
-        if (emailConfirmAutoCloseTimer) {
-            clearTimeout(emailConfirmAutoCloseTimer);
-            emailConfirmAutoCloseTimer = null;
-        }
 
         overlay.classList.add('closing');
         setTimeout(() => {
@@ -158,11 +151,6 @@
         console.log('[Email Confirm Success] After setting styles - overlay display:', window.getComputedStyle(overlay).display);
         console.log('[Email Confirm Success] Overlay should now be visible');
 
-        if (emailConfirmAutoCloseTimer) clearTimeout(emailConfirmAutoCloseTimer);
-        emailConfirmAutoCloseTimer = setTimeout(() => {
-            hideEmailConfirmOverlay();
-            showStorefront();
-        }, 2500);
     }
 
     function queueEmailConfirmedBanner() {
