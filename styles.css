@@ -3495,7 +3495,7 @@ a {
 =========================== */
 
 .email-confirm-overlay {
-    display: none;
+    display: flex;
     position: fixed;
     inset: 0;
     width: 100%;
@@ -3507,13 +3507,22 @@ a {
     justify-content: center;
     padding: 20px;
     overflow: auto;
-    opacity: 1;
-    pointer-events: auto;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.24s ease, visibility 0.24s ease;
 }
 
 .email-confirm-overlay.active {
-    display: flex;
+    opacity: 1;
     visibility: visible;
+    pointer-events: auto;
+}
+
+.email-confirm-overlay.closing {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .email-confirm-card {
@@ -3574,6 +3583,7 @@ a {
 .email-confirm-icon-success {
     background: linear-gradient(135deg, #f37920, #ffc844);
     color: #fff;
+    animation: emailConfirmSuccessPop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
 .email-confirm-icon-error {
@@ -3624,4 +3634,18 @@ a {
 .email-confirm-btn-ghost:hover {
     opacity: 1;
     background: var(--bg-card-hover);
+}
+
+@keyframes emailConfirmSuccessPop {
+    0% {
+        transform: scale(0.78);
+        opacity: 0;
+    }
+    65% {
+        transform: scale(1.08);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1);
+    }
 }

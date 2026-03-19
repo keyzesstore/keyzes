@@ -75,6 +75,31 @@
         document.getElementById('emailConfirmError').style.display = 'flex';
     }
 
+    let emailConfirmAutoCloseTimer = null;
+
+    function hideEmailConfirmOverlay() {
+        const overlay = document.getElementById('emailConfirmOverlay');
+        if (!overlay) return;
+
+        if (emailConfirmAutoCloseTimer) {
+            clearTimeout(emailConfirmAutoCloseTimer);
+            emailConfirmAutoCloseTimer = null;
+        }
+
+        overlay.classList.add('closing');
+        setTimeout(() => {
+            overlay.classList.remove('active', 'closing');
+
+            const loading = document.getElementById('emailConfirmLoading');
+            const success = document.getElementById('emailConfirmSuccess');
+            const error = document.getElementById('emailConfirmError');
+
+            if (loading) loading.style.display = 'flex';
+            if (success) success.style.display = 'none';
+            if (error) error.style.display = 'none';
+        }, 220);
+    }
+
     function showEmailConfirmSuccessOverlay(title, message) {
         console.log('[Email Confirm Success] Called with title:', title);
         const overlay = document.getElementById('emailConfirmOverlay');
@@ -121,6 +146,7 @@
         overlay.style.display = 'flex';
         overlay.style.visibility = 'visible';
         overlay.style.opacity = '1';
+        overlay.classList.remove('closing');
         overlay.classList.add('active');
         
         // Ensure parent isn't hiding it
@@ -131,6 +157,12 @@
         
         console.log('[Email Confirm Success] After setting styles - overlay display:', window.getComputedStyle(overlay).display);
         console.log('[Email Confirm Success] Overlay should now be visible');
+
+        if (emailConfirmAutoCloseTimer) clearTimeout(emailConfirmAutoCloseTimer);
+        emailConfirmAutoCloseTimer = setTimeout(() => {
+            hideEmailConfirmOverlay();
+            showStorefront();
+        }, 2500);
     }
 
     function queueEmailConfirmedBanner() {
@@ -2576,12 +2608,12 @@
 
     // Email confirmation overlay buttons
     document.getElementById('emailConfirmGoBtn').addEventListener('click', () => {
-        document.getElementById('emailConfirmOverlay').classList.remove('active');
+        hideEmailConfirmOverlay();
         showStorefront();
         showQueuedEmailConfirmedBanner();
     });
     document.getElementById('emailConfirmRetryBtn').addEventListener('click', () => {
-        document.getElementById('emailConfirmOverlay').classList.remove('active');
+        hideEmailConfirmOverlay();
         showStorefront();
     });
 
