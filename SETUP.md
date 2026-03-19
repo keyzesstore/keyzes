@@ -81,6 +81,7 @@ Edit `config.js` and set:
 - `supabaseAnonKey`: from Supabase API settings
 - `authRedirectUrl`: your production site URL (used in email verification links), e.g. `https://keyzes.com`
 - `orderEmailFunctionUrl`: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-order-email`
+- `accountDeleteFunctionUrl` (optional): `https://YOUR_PROJECT_REF.supabase.co/functions/v1/delete-account`
 
 Important:
 - Never put service role key in frontend.
@@ -113,6 +114,48 @@ To send verification emails with Resend:
    - Sender email: a verified Resend sender (for example `noreply@mail.keyzes.com`)
 4. Save and send a test auth email from Supabase.
 
+To make verification emails look better:
+1. Go to Authentication -> Email Templates -> Confirm signup.
+2. Keep `{{ .ConfirmationURL }}` exactly as-is for the button link.
+3. Paste this HTML template:
+
+```html
+<!doctype html>
+<html>
+   <body style="margin:0;padding:0;background:#f4f6fb;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="padding:24px 12px;">
+         <tr>
+            <td align="center">
+               <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb;">
+                  <tr>
+                     <td style="background:linear-gradient(135deg,#0f766e,#0ea5e9);padding:24px 28px;color:#ffffff;">
+                        <h1 style="margin:0;font-size:24px;line-height:1.2;">Welcome to Keyzes</h1>
+                        <p style="margin:10px 0 0;font-size:14px;line-height:1.5;opacity:.95;">Confirm your email to activate your account.</p>
+                     </td>
+                  </tr>
+                  <tr>
+                     <td style="padding:24px 28px;">
+                        <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Thanks for joining Keyzes. Click the button below to verify your email and start shopping.</p>
+                        <p style="margin:0 0 20px;">
+                           <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 18px;border-radius:10px;font-size:14px;">Confirm Email</a>
+                        </p>
+                        <p style="margin:0;font-size:13px;line-height:1.6;color:#4b5563;">If the button does not work, copy and paste this link into your browser:</p>
+                        <p style="margin:8px 0 0;font-size:12px;line-height:1.6;color:#6b7280;word-break:break-all;">{{ .ConfirmationURL }}</p>
+                     </td>
+                  </tr>
+                  <tr>
+                     <td style="padding:16px 28px;background:#f9fafb;border-top:1px solid #e5e7eb;">
+                        <p style="margin:0;font-size:12px;line-height:1.6;color:#6b7280;">If you did not create this account, you can safely ignore this email.</p>
+                     </td>
+                  </tr>
+               </table>
+            </td>
+         </tr>
+      </table>
+   </body>
+</html>
+```
+
 ## 10) Checkout behavior now
 
 - Customer must sign up/login using Supabase Auth.
@@ -121,6 +164,20 @@ To send verification emails with Resend:
 - Creates `orders` + `order_items` in Supabase.
 - Calls `send-order-email` function.
 - Clears cart after successful order creation.
+
+## 10.1) Admin + account behavior
+
+- The account `keyzes.store@gmail.com` is treated as the admin account in the storefront UI.
+- Admin panel buttons are hidden for all other users.
+- Regular users get an Account settings page with:
+   - change password,
+   - forgot-password email reset,
+   - delete account button (requires `accountDeleteFunctionUrl` function).
+
+Suggested delete-account function behavior:
+- Read authenticated user from Supabase JWT.
+- Delete that user with service role privileges.
+- Return `200` only when deletion succeeds.
 
 ## 11) Final verification checklist
 
@@ -132,3 +189,4 @@ To send verification emails with Resend:
 6. Confirm a new row in `orders` table.
 7. Confirm rows in `order_items`.
 8. Confirm confirmation email is received.
+9. Confirm verification link opens your production site (not localhost).

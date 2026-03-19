@@ -14,7 +14,7 @@
     const STORAGE_PRODUCTS = 'keyzes_products';
     const STORAGE_SETTINGS = 'keyzes_settings';
     const STORAGE_CART = 'keyzes_cart';
-    const STORAGE_AUTH = 'keyzes_auth';
+    const ADMIN_EMAIL = 'keyzes.store@gmail.com';
 
     // ---- Default Admin Credentials ----
     const DEFAULT_ADMIN = { username: 'admin', password: 'admin123' };
@@ -53,6 +53,77 @@
 
     function isConfigured(value) {
         return typeof value === 'string' && value.trim() && !value.includes('YOUR_');
+    }
+
+    function getAuthRedirectUrl() {
+        if (isConfigured(APP_CONFIG.authRedirectUrl)) {
+            return APP_CONFIG.authRedirectUrl.trim();
+        }
+        return window.location.origin + window.location.pathname;
+    }
+
+    function clearAuthCallbackUrl() {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        if (window.location.href !== cleanUrl) {
+            window.history.replaceState({}, document.title, cleanUrl);
+        }
+    }
+
+    function getAuthCallbackParams() {
+        const searchParams = new URLSearchParams(window.location.search || '');
+        const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+
+        const rawDescription = searchParams.get('error_description') || hashParams.get('error_description') || '';
+        const errorDescription = rawDescription.replace(/\+/g, ' ').trim();
+
+        return {
+            type: hashParams.get('type') || searchParams.get('type') || '',
+            error: searchParams.get('error') || hashParams.get('error') || '',
+            errorDescription,
+        };
+    }
+
+    function handleAuthCallbackFeedback() {
+        const hasSearch = !!window.location.search;
+        const hasHash = !!window.location.hash;
+        if (!hasSearch && !hasHash) return;
+
+        const callbackParams = getAuthCallbackParams();
+        const description = callbackParams.errorDescription.toLowerCase();
+
+        if (callbackParams.error) {
+            if (description.includes('expired')) {
+                const intro = callbackParams.type === 'recovery'
+                    ? 'Your password reset link expired. Request a new reset email.'
+                    : 'Your confirmation link expired. Log in to request a fresh verification email.';
+                openCustomerAuth('login', intro);
+                showToast(callbackParams.type === 'recovery'
+                    ? 'Reset link expired. Request a new password reset email.'
+                    : 'Verification link expired. Request a new email and try again.', 'error');
+            } else {
+                openCustomerAuth('login', 'We could not verify your email from that link. Please try again.');
+                showToast('Email verification could not be completed.', 'error');
+            }
+            clearAuthCallbackUrl();
+            return;
+        }
+
+        if (callbackParams.type === 'recovery') {
+            openCustomerAuth('reset', 'Set your new password to finish account recovery.');
+            showToast('Reset link accepted. Create your new password.', 'info');
+            clearAuthCallbackUrl();
+            return;
+        }
+
+        if (callbackParams.type === 'signup') {
+            if (currentCustomer) {
+                showToast('Email confirmed. Your account is ready.', 'success');
+            } else {
+                openCustomerAuth('login', 'Email confirmed successfully. Log in to continue shopping.');
+                showToast('Email confirmed. You can now log in.', 'success');
+            }
+            clearAuthCallbackUrl();
+        }
     }
 
     async function createRemoteOrder(customerEmail, cartItems) {
@@ -147,7 +218,6 @@
         username: DEFAULT_ADMIN.username,
         password: DEFAULT_ADMIN.password,
     });
-    let isAdmin = loadJSON(STORAGE_AUTH, false);
     let cart = loadJSON(STORAGE_CART, []);
     let currentCustomer = null;
     let pendingVerificationEmail = '';
@@ -795,13 +865,30 @@
     const storefrontView = $('#storefrontView');
     const siteFooter = $('#siteFooter');
     const cartView = $('#cartView');
+    const customerSettingsView = $('#customerSettingsView');
+    const accountTrigger = $('#accountTrigger');
+    const mobileAccountTrigger = $('#mobileAccountTrigger');
+    const mobileAdminTrigger = $('#mobileAdminTrigger');
+    const settingsBackBtn = $('#settingsBackBtn');
+    const settingsCustomerName = $('#settingsCustomerName');
+    const settingsCustomerEmail = $('#settingsCustomerEmail');
+    const customerPasswordForm = $('#customerPasswordForm');
+    const customerNewPassword = $('#customerNewPassword');
+    const customerNewPasswordConfirm = $('#customerNewPasswordConfirm');
+    const customerPasswordError = $('#customerPasswordError');
+    const customerDeleteAccountBtn = $('#customerDeleteAccountBtn');
+    const customerDeleteHelp = $('#customerDeleteHelp');
     const customerAuthOverlay = $('#customerAuthOverlay');
     const customerAuthTitle = $('#customerAuthTitle');
     const customerAuthIntro = $('#customerAuthIntro');
     const customerLoginForm = $('#customerLoginForm');
     const customerSignupForm = $('#customerSignupForm');
+    const customerForgotForm = $('#customerForgotForm');
+    const customerResetForm = $('#customerResetForm');
     const customerLoginError = $('#customerLoginError');
     const customerSignupError = $('#customerSignupError');
+    const customerForgotError = $('#customerForgotError');
+    const customerResetError = $('#customerResetError');
     const customerGuestActions = $('#customerGuestActions');
     const customerSessionPanel = $('#customerSessionPanel');
     const mobileGuestActions = $('#mobileGuestActions');
@@ -822,6 +909,19 @@
     const customerSignupEmail = $('#customerSignupEmail');
     const customerSignupPassword = $('#customerSignupPassword');
     const customerSignupConfirm = $('#customerSignupConfirm');
+    const customerForgotPasswordBtn = $('#customerForgotPasswordBtn');
+    const customerForgotBackBtn = $('#customerForgotBackBtn');
+    const customerForgotEmail = $('#customerForgotEmail');
+    const customerResetPassword = $('#customerResetPassword');
+    const customerResetPasswordConfirm = $('#customerResetPasswordConfirm');
+
+    function isCurrentUserAdmin() {
+        return !!currentCustomer && normalizeEmail(currentCustomer.email) === ADMIN_EMAIL;
+    }
+
+    function isDeleteAccountConfigured() {
+        return isConfigured(APP_CONFIG.accountDeleteFunctionUrl);
+    }
 
     function isValidEmail(value) {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
@@ -978,16 +1078,60 @@
 
     function renderCustomerState() {
         const isSignedIn = !!currentCustomer;
+        const isAdminCustomer = isCurrentUserAdmin();
         const displayName = isSignedIn ? customerFirstName(currentCustomer) : 'Guest';
 
         customerGuestActions.style.display = isSignedIn ? 'none' : 'flex';
         customerSessionPanel.style.display = isSignedIn ? 'flex' : 'none';
         mobileGuestActions.style.display = isSignedIn ? 'none' : 'flex';
         mobileSessionPanel.style.display = isSignedIn ? 'flex' : 'none';
+        if (accountTrigger) accountTrigger.style.display = isSignedIn && !isAdminCustomer ? '' : 'none';
+        if (mobileAccountTrigger) mobileAccountTrigger.style.display = isSignedIn && !isAdminCustomer ? '' : 'none';
+        if ($('#adminTrigger')) $('#adminTrigger').style.display = isAdminCustomer ? '' : 'none';
+        if (mobileAdminTrigger) mobileAdminTrigger.style.display = isAdminCustomer ? '' : 'none';
 
         $('#customerSessionName').textContent = displayName;
         $('#mobileSessionName').textContent = displayName;
+
+        if (customerSettingsView && customerSettingsView.style.display !== 'none' && (!isSignedIn || isAdminCustomer)) {
+            showStorefront();
+        }
+        if (adminView.style.display !== 'none' && !isAdminCustomer) {
+            showStorefront();
+        }
         updateCheckoutState();
+    }
+
+    function showForgotPasswordState() {
+        exitVerificationState();
+        hideVerifyBox();
+        customerLoginForm.style.display = 'none';
+        customerSignupForm.style.display = 'none';
+        customerResetForm.style.display = 'none';
+        customerForgotForm.style.display = '';
+        customerForgotError.textContent = '';
+        customerAuthTitle.textContent = 'Reset Your Password';
+        customerAuthIntro.textContent = 'Enter your account email and we will send a password reset link.';
+        $$('.customer-auth-tab').forEach(tab => {
+            tab.classList.remove('active');
+            tab.style.display = 'none';
+        });
+    }
+
+    function showResetPasswordState() {
+        exitVerificationState();
+        hideVerifyBox();
+        customerLoginForm.style.display = 'none';
+        customerSignupForm.style.display = 'none';
+        customerForgotForm.style.display = 'none';
+        customerResetForm.style.display = '';
+        customerResetError.textContent = '';
+        customerAuthTitle.textContent = 'Create a New Password';
+        customerAuthIntro.textContent = 'Set a new password for your account to finish recovery.';
+        $$('.customer-auth-tab').forEach(tab => {
+            tab.classList.remove('active');
+            tab.style.display = 'none';
+        });
     }
 
     function setAuthMode(mode) {
@@ -995,26 +1139,39 @@
         exitVerificationState();
         customerLoginForm.style.display = loginMode ? '' : 'none';
         customerSignupForm.style.display = loginMode ? 'none' : '';
+        customerForgotForm.style.display = 'none';
+        customerResetForm.style.display = 'none';
         clearInlineErrors(customerLoginForm);
         clearInlineErrors(customerSignupForm);
         customerLoginError.textContent = '';
         customerSignupError.textContent = '';
+        customerForgotError.textContent = '';
+        customerResetError.textContent = '';
         hideVerifyBox();
         $$('.customer-auth-tab').forEach(tab => {
+            tab.style.display = '';
             tab.classList.toggle('active', tab.dataset.authMode === (loginMode ? 'login' : 'signup'));
         });
         customerAuthTitle.textContent = loginMode ? 'Access Your Account' : 'Create Your Account';
     }
 
     function openCustomerAuth(mode, introText) {
-        setAuthMode(mode);
+        if (mode === 'forgot') showForgotPasswordState();
+        else if (mode === 'reset') showResetPasswordState();
+        else setAuthMode(mode);
         customerLoginError.textContent = '';
         customerSignupError.textContent = '';
         customerAuthIntro.textContent = introText || 'Sign in or create an account to start building your cart.';
         hideVerifyBox();
         customerAuthOverlay.classList.add('open');
         document.body.style.overflow = 'hidden';
-        const focusTarget = mode === 'signup' ? $('#customerSignupName') : $('#customerLoginEmail');
+        const focusTarget = mode === 'signup'
+            ? $('#customerSignupName')
+            : mode === 'forgot'
+                ? $('#customerForgotEmail')
+                : mode === 'reset'
+                    ? $('#customerResetPassword')
+                    : $('#customerLoginEmail');
         if (focusTarget) window.setTimeout(() => focusTarget.focus(), 30);
     }
 
@@ -1043,6 +1200,7 @@
             return;
         }
         await syncCustomerFromSession();
+        handleAuthCallbackFeedback();
         supabaseClient.auth.onAuthStateChange((_event, session) => {
             const user = session && session.user;
             setCurrentCustomer(mapSupabaseUserToCustomer(user));
@@ -1065,6 +1223,7 @@
         storefrontView.style.display = '';
         adminView.style.display = 'none';
         cartView.style.display = 'none';
+        customerSettingsView.style.display = 'none';
         siteFooter.style.display = '';
         renderProducts();
     }
@@ -1119,7 +1278,7 @@
         const { error } = await supabaseClient.auth.resend({
             type: 'signup',
             email: pendingVerificationEmail,
-            options: { emailRedirectTo: APP_CONFIG.authRedirectUrl || window.location.href.split('#')[0] },
+            options: { emailRedirectTo: getAuthRedirectUrl() },
         });
         customerResendVerifyBtn.disabled = false;
         customerVerifyStateResendBtn.disabled = false;
@@ -1144,6 +1303,75 @@
 
     $$('.customer-auth-tab').forEach(tab => {
         tab.addEventListener('click', () => setAuthMode(tab.dataset.authMode));
+    });
+
+    customerForgotPasswordBtn.addEventListener('click', () => {
+        const fallbackEmail = currentCustomer ? currentCustomer.email : '';
+        customerForgotEmail.value = normalizeEmail(customerLoginEmail.value || fallbackEmail || '');
+        openCustomerAuth('forgot');
+    });
+
+    customerForgotBackBtn.addEventListener('click', () => {
+        setAuthMode('login');
+        customerLoginEmail.focus();
+    });
+
+    customerForgotForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!authReady()) {
+            customerForgotError.textContent = 'Supabase auth is not configured yet.';
+            return;
+        }
+
+        const email = normalizeEmail(customerForgotEmail.value);
+        if (!email || !isValidEmail(email)) {
+            customerForgotError.textContent = 'Enter a valid email address.';
+            return;
+        }
+
+        customerForgotError.textContent = '';
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: getAuthRedirectUrl(),
+        });
+
+        if (error) {
+            customerForgotError.textContent = error.message || 'Could not send reset email.';
+            return;
+        }
+
+        showToast('Password reset email sent. Check your inbox.', 'info');
+        setAuthMode('login');
+        customerLoginEmail.value = email;
+    });
+
+    customerResetForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!authReady()) {
+            customerResetError.textContent = 'Supabase auth is not configured yet.';
+            return;
+        }
+
+        const password = customerResetPassword.value;
+        const confirmPassword = customerResetPasswordConfirm.value;
+        if (password.length < 6) {
+            customerResetError.textContent = 'Use at least 6 characters.';
+            return;
+        }
+        if (password !== confirmPassword) {
+            customerResetError.textContent = 'Passwords do not match.';
+            return;
+        }
+
+        customerResetError.textContent = '';
+        const { error } = await supabaseClient.auth.updateUser({ password });
+        if (error) {
+            customerResetError.textContent = error.message || 'Could not update password.';
+            return;
+        }
+
+        customerResetForm.reset();
+        setAuthMode('login');
+        showToast('Password updated. Log in with your new password.', 'success');
     });
 
     customerLoginForm.addEventListener('submit', e => {
@@ -1210,7 +1438,7 @@
             password,
             options: {
                 data: { full_name: name },
-                emailRedirectTo: APP_CONFIG.authRedirectUrl || window.location.href.split('#')[0],
+                emailRedirectTo: getAuthRedirectUrl(),
             },
         }).then(({ data, error }) => {
             if (error) {
@@ -1264,19 +1492,49 @@
     function showCart() {
         storefrontView.style.display = 'none';
         adminView.style.display = 'none';
+        customerSettingsView.style.display = 'none';
         cartView.style.display = '';
         siteFooter.style.display = '';
         renderCart();
     }
 
+    function showCustomerSettings() {
+        if (!currentCustomer) {
+            openCustomerAuth('login', 'Log in to access your account settings.');
+            return;
+        }
+        if (isCurrentUserAdmin()) {
+            showAdmin();
+            return;
+        }
+
+        storefrontView.style.display = 'none';
+        adminView.style.display = 'none';
+        cartView.style.display = 'none';
+        customerSettingsView.style.display = '';
+        siteFooter.style.display = '';
+        settingsCustomerName.textContent = currentCustomer.name;
+        settingsCustomerEmail.textContent = currentCustomer.email;
+        customerPasswordForm.reset();
+        customerPasswordError.textContent = '';
+        customerDeleteHelp.textContent = isDeleteAccountConfigured()
+            ? 'Delete request will be processed immediately.'
+            : 'Account deletion endpoint is not configured yet. Contact support to complete account removal.';
+    }
+
     function showAdmin() {
-        if (!isAdmin) {
-            adminLoginOverlay.classList.add('open');
+        if (!currentCustomer) {
+            openCustomerAuth('login', 'Sign in with the admin account to open the admin panel.');
+            return;
+        }
+        if (!isCurrentUserAdmin()) {
+            showToast('Admin access is restricted to ' + ADMIN_EMAIL + '.', 'error');
             return;
         }
         storefrontView.style.display = 'none';
         adminView.style.display = '';
         cartView.style.display = 'none';
+        customerSettingsView.style.display = 'none';
         siteFooter.style.display = 'none';
         showAdminSection('dashboard');
     }
@@ -1290,6 +1548,7 @@
             e.preventDefault();
             const nav = link.dataset.nav;
             if (nav === 'admin') { showAdmin(); }
+            else if (nav === 'account') { showCustomerSettings(); }
             else if (nav === 'cart') { showCart(); }
             else { showStorefront(); }
             mobileMenuBtn.classList.remove('active');
@@ -1300,38 +1559,11 @@
     // Logo goes to store
     $('#logoHome').addEventListener('click', e => { e.preventDefault(); showStorefront(); });
 
-    // Admin login close
-    $('#adminLoginClose').addEventListener('click', () => adminLoginOverlay.classList.remove('open'));
-    adminLoginOverlay.addEventListener('click', e => { if (e.target === adminLoginOverlay) adminLoginOverlay.classList.remove('open'); });
-
-    // Password toggle
-    $('#passwordToggle').addEventListener('click', () => {
-        const inp = $('#adminPassword');
-        inp.type = inp.type === 'password' ? 'text' : 'password';
-    });
-
-    // Admin login submit
-    adminLoginForm.addEventListener('submit', e => {
-        e.preventDefault();
-        const user = $('#adminUsername').value.trim();
-        const pass = $('#adminPassword').value;
-        if (user === siteSettings.username && pass === siteSettings.password) {
-            isAdmin = true;
-            saveJSON(STORAGE_AUTH, true);
-            adminLoginOverlay.classList.remove('open');
-            adminLoginError.textContent = '';
-            adminLoginForm.reset();
-            showAdmin();
-        } else {
-            adminLoginError.textContent = 'Invalid username or password.';
-        }
-    });
-
     // Admin logout
-    $('#adminLogout').addEventListener('click', e => {
+    $('#adminLogout').addEventListener('click', async e => {
         e.preventDefault();
-        isAdmin = false;
-        saveJSON(STORAGE_AUTH, false);
+        if (authReady()) await supabaseClient.auth.signOut();
+        setCurrentCustomer(null);
         showStorefront();
         showToast('Signed out successfully.', 'info');
     });
@@ -1340,6 +1572,89 @@
     $('#adminBackToStore').addEventListener('click', e => { e.preventDefault(); showStorefront(); });
     const adminMobileBack = $('#adminMobileBack');
     if (adminMobileBack) adminMobileBack.addEventListener('click', () => showStorefront());
+    if (settingsBackBtn) settingsBackBtn.addEventListener('click', () => showStorefront());
+
+    customerPasswordForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!authReady() || !currentCustomer) {
+            customerPasswordError.textContent = 'Please log in first.';
+            return;
+        }
+
+        const password = customerNewPassword.value;
+        const confirmPassword = customerNewPasswordConfirm.value;
+        if (password.length < 6) {
+            customerPasswordError.textContent = 'Use at least 6 characters.';
+            return;
+        }
+        if (password !== confirmPassword) {
+            customerPasswordError.textContent = 'Passwords do not match.';
+            return;
+        }
+
+        customerPasswordError.textContent = '';
+        const { error } = await supabaseClient.auth.updateUser({ password });
+        if (error) {
+            customerPasswordError.textContent = error.message || 'Could not update password.';
+            return;
+        }
+
+        customerPasswordForm.reset();
+        showToast('Password updated successfully.', 'success');
+    });
+
+    customerDeleteAccountBtn.addEventListener('click', () => {
+        if (!currentCustomer) {
+            showToast('Please log in first.', 'error');
+            return;
+        }
+
+        showConfirm(
+            'Delete Account?',
+            'This action permanently removes your account and cannot be undone.',
+            async () => {
+                if (!isDeleteAccountConfigured()) {
+                    showToast('Delete endpoint is not configured yet.', 'error');
+                    return;
+                }
+                if (!authReady()) {
+                    showToast('Supabase auth is not configured yet.', 'error');
+                    return;
+                }
+
+                const sessionResult = await supabaseClient.auth.getSession();
+                const session = sessionResult && sessionResult.data && sessionResult.data.session;
+                if (!session || !session.access_token) {
+                    showToast('Your session expired. Please log in again.', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(APP_CONFIG.accountDeleteFunctionUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: 'Bearer ' + session.access_token,
+                        },
+                        body: JSON.stringify({ reason: 'self-service-delete' }),
+                    });
+
+                    if (!response.ok) {
+                        const message = await response.text();
+                        showToast('Could not delete account. ' + (message || 'Try again later.'), 'error');
+                        return;
+                    }
+
+                    await supabaseClient.auth.signOut();
+                    setCurrentCustomer(null);
+                    showStorefront();
+                    showToast('Your account has been deleted.', 'success');
+                } catch {
+                    showToast('Could not delete account right now. Try again later.', 'error');
+                }
+            }
+        );
+    });
 
     // Admin sidebar nav
     $$('.admin-nav-item[data-section]').forEach(item => {

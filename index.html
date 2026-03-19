@@ -45,7 +45,8 @@
                     </svg>
                     Cart
                 </a>
-                <a href="#" class="nav-link admin-trigger" id="adminTrigger" title="Admin Panel">
+                <a href="#" class="nav-link" id="accountTrigger" data-nav="account" style="display:none;">Account</a>
+                <a href="#" class="nav-link admin-trigger" id="adminTrigger" title="Admin Panel" style="display:none;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
                         <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
@@ -67,6 +68,7 @@
             </div>
             <a href="#" class="mobile-nav-link active" data-nav="store">Store</a>
             <a href="#" class="mobile-nav-link" data-nav="cart">Cart</a>
+            <a href="#" class="mobile-nav-link" data-nav="account" id="mobileAccountTrigger" style="display:none;">Account</a>
             <div class="mobile-auth-actions" id="mobileGuestActions">
                 <button type="button" class="mobile-auth-btn mobile-auth-btn-primary" id="mobileAuthBtn">Login / Sign up</button>
             </div>
@@ -74,7 +76,7 @@
                 <span class="mobile-session-copy">Signed in as <strong id="mobileSessionName">Guest</strong></span>
                 <button type="button" class="mobile-auth-btn" id="mobileLogoutBtn">Log Out</button>
             </div>
-            <a href="#" class="mobile-nav-link" data-nav="admin">Admin Panel</a>
+            <a href="#" class="mobile-nav-link" data-nav="admin" id="mobileAdminTrigger" style="display:none;">Admin Panel</a>
         </nav>
     </header>
 
@@ -239,6 +241,70 @@
                     <button class="checkout-btn" id="checkoutBtn">Proceed to Checkout</button>
                     <p class="checkout-note">Payment provider coming soon.</p>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== ACCOUNT VIEW ========== -->
+    <div class="account-view" id="customerSettingsView" style="display:none;">
+        <div class="container">
+            <div class="cart-header">
+                <h2>Account Settings</h2>
+                <button class="cart-back-btn" id="settingsBackBtn">&larr; Back to Store</button>
+            </div>
+            <div class="account-grid">
+                <section class="settings-card">
+                    <h3>Profile</h3>
+                    <p class="settings-hint">Manage your account details used for checkout and authentication.</p>
+                    <div class="account-profile-list">
+                        <div>
+                            <span class="account-profile-label">Name</span>
+                            <strong id="settingsCustomerName">-</strong>
+                        </div>
+                        <div>
+                            <span class="account-profile-label">Email</span>
+                            <strong id="settingsCustomerEmail">-</strong>
+                        </div>
+                    </div>
+                </section>
+                <section class="settings-card">
+                    <h3>Change Password</h3>
+                    <p class="settings-hint">Use a strong password with at least 6 characters.</p>
+                    <form id="customerPasswordForm" class="customer-auth-form account-inline-form">
+                        <div class="admin-form-group">
+                            <label for="customerNewPassword">New Password</label>
+                            <div class="customer-input-wrap customer-input-wrap-password">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <rect x="4" y="11" width="16" height="9" rx="2"/>
+                                        <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
+                                    </svg>
+                                </span>
+                                <input type="password" id="customerNewPassword" placeholder="New password" autocomplete="new-password" required>
+                            </div>
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="customerNewPasswordConfirm">Confirm New Password</label>
+                            <div class="customer-input-wrap customer-input-wrap-password">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="m9 12 2 2 4-4"/>
+                                        <rect x="4" y="4" width="16" height="16" rx="3"/>
+                                    </svg>
+                                </span>
+                                <input type="password" id="customerNewPasswordConfirm" placeholder="Confirm new password" autocomplete="new-password" required>
+                            </div>
+                        </div>
+                        <div class="admin-login-error" id="customerPasswordError"></div>
+                        <button type="submit" class="admin-login-btn">Update Password</button>
+                    </form>
+                </section>
+                <section class="settings-card settings-card-danger">
+                    <h3>Delete Account</h3>
+                    <p class="settings-hint">This permanently removes your account. This action cannot be undone.</p>
+                    <button type="button" class="admin-btn admin-btn-danger" id="customerDeleteAccountBtn">Delete My Account</button>
+                    <p class="settings-hint" id="customerDeleteHelp" style="margin-top:12px;margin-bottom:0;">If deletion is not configured yet, contact support to complete account removal.</p>
+                </section>
             </div>
         </div>
     </div>
@@ -695,6 +761,9 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="customer-auth-link-row">
+                            <button type="button" class="customer-auth-link-btn" id="customerForgotPasswordBtn">Forgot password?</button>
+                        </div>
                         <div class="admin-login-error" id="customerLoginError"></div>
                         <button type="submit" class="admin-login-btn">Log In</button>
                     </form>
@@ -761,6 +830,63 @@
                         </div>
                         <div class="admin-login-error" id="customerSignupError"></div>
                         <button type="submit" class="admin-login-btn">Create Account</button>
+                    </form>
+                    <form id="customerForgotForm" class="customer-auth-form" style="display:none;">
+                        <div class="admin-form-group">
+                            <label for="customerForgotEmail">Account Email</label>
+                            <div class="customer-input-wrap">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M4 6h16v12H4z"/>
+                                        <path d="m4 7 8 6 8-6"/>
+                                    </svg>
+                                </span>
+                                <input type="email" id="customerForgotEmail" placeholder="you@example.com" autocomplete="email" required>
+                            </div>
+                        </div>
+                        <div class="admin-login-error" id="customerForgotError"></div>
+                        <button type="submit" class="admin-login-btn">Send Reset Email</button>
+                        <button type="button" class="customer-secondary-btn" id="customerForgotBackBtn">Back to Login</button>
+                    </form>
+                    <form id="customerResetForm" class="customer-auth-form" style="display:none;">
+                        <div class="admin-form-group">
+                            <label for="customerResetPassword">New Password</label>
+                            <div class="customer-input-wrap customer-input-wrap-password">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <rect x="4" y="11" width="16" height="9" rx="2"/>
+                                        <path d="M8 11V8a4 4 0 1 1 8 0v3"/>
+                                    </svg>
+                                </span>
+                                <input type="password" id="customerResetPassword" placeholder="New password" autocomplete="new-password" required>
+                                <button type="button" class="customer-password-toggle" data-password-toggle data-target="customerResetPassword" aria-label="Show password">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="admin-form-group">
+                            <label for="customerResetPasswordConfirm">Confirm New Password</label>
+                            <div class="customer-input-wrap customer-input-wrap-password">
+                                <span class="customer-input-icon" aria-hidden="true">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="m9 12 2 2 4-4"/>
+                                        <rect x="4" y="4" width="16" height="16" rx="3"/>
+                                    </svg>
+                                </span>
+                                <input type="password" id="customerResetPasswordConfirm" placeholder="Confirm new password" autocomplete="new-password" required>
+                                <button type="button" class="customer-password-toggle" data-password-toggle data-target="customerResetPasswordConfirm" aria-label="Show password">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+                                        <circle cx="12" cy="12" r="3"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="admin-login-error" id="customerResetError"></div>
+                        <button type="submit" class="admin-login-btn">Set New Password</button>
                     </form>
                 </div>
             </div>

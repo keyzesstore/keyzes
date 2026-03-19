@@ -2236,6 +2236,45 @@ a {
     flex-wrap: wrap;
 }
 
+.account-view {
+    padding: 36px 0 64px;
+}
+
+.account-grid {
+    display: grid;
+    gap: 18px;
+    max-width: 760px;
+}
+
+.account-profile-list {
+    display: grid;
+    gap: 14px;
+}
+
+.account-profile-list > div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: rgba(16, 22, 38, 0.62);
+}
+
+.account-profile-label {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.settings-card-danger {
+    border-color: rgba(231, 76, 60, 0.35);
+}
+
+.account-inline-form {
+    max-width: 460px;
+}
+
 .import-btn {
     cursor: pointer;
 }
@@ -2799,6 +2838,45 @@ a {
     margin: -4px 0 -2px;
 }
 
+.customer-auth-link-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: -4px;
+    margin-bottom: 6px;
+}
+
+.customer-auth-link-btn {
+    border: none;
+    background: transparent;
+    color: var(--blue-light);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.customer-auth-link-btn:hover {
+    color: var(--cyan);
+}
+
+.customer-secondary-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(16, 22, 38, 0.72);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+.customer-secondary-btn:hover {
+    border-color: var(--border-hover);
+}
+
 /* === Toast Notification === */
 .toast {
     position: fixed;
@@ -3256,6 +3334,15 @@ a {
 
     .settings-data-actions {
         flex-direction: column;
+    }
+
+    .account-view {
+        padding: 24px 0 52px;
+    }
+
+    .account-profile-list > div {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .toast {
