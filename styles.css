@@ -3503,7 +3503,7 @@ a {
     width: 100% !important;
     height: 100% !important;
     z-index: 99999 !important;
-    background: rgba(10, 14, 26, 0.95) !important;
+    background: red !important;
     align-items: center !important;
     justify-content: center !important;
     padding: 20px !important;
@@ -3523,8 +3523,8 @@ a {
     max-width: 420px;
     width: 100%;
     animation: fadeInUp 0.45s ease;
-    background: var(--bg-card) !important;
-    border: 1px solid var(--border) !important;
+    background: blue !important;
+    border: 5px solid yellow !important;
     border-radius: var(--radius-xl) !important;
     position: relative !important;
     z-index: 100000 !important;
