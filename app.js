@@ -75,6 +75,22 @@
         document.getElementById('emailConfirmError').style.display = 'flex';
     }
 
+    function queueEmailConfirmedBanner() {
+        try {
+            window.sessionStorage.setItem('keyzesEmailConfirmedBanner', '1');
+        } catch {}
+    }
+
+    function showQueuedEmailConfirmedBanner() {
+        try {
+            if (window.sessionStorage.getItem('keyzesEmailConfirmedBanner') !== '1') return;
+            window.sessionStorage.removeItem('keyzesEmailConfirmedBanner');
+        } catch {
+            return;
+        }
+        showToast('Email confirmed. You are now logged in.', 'success');
+    }
+
     async function handleTokenHashConfirmation() {
         const searchParams = new URLSearchParams(window.location.search || '');
         const tokenHash = searchParams.get('token_hash');
@@ -101,6 +117,9 @@
         if (data && data.user) {
             setCurrentCustomer(mapSupabaseUserToCustomer(data.user));
         }
+
+        // Persist the success banner request so it appears after redirect/login flow.
+        queueEmailConfirmedBanner();
 
         clearAuthCallbackUrl();
         document.getElementById('emailConfirmLoading').style.display = 'none';
@@ -1247,6 +1266,7 @@
         }
         await syncCustomerFromSession();
         if (!isConfirmFlow) handleAuthCallbackFeedback();
+        showQueuedEmailConfirmedBanner();
         supabaseClient.auth.onAuthStateChange((_event, session) => {
             const user = session && session.user;
             setCurrentCustomer(mapSupabaseUserToCustomer(user));
@@ -2467,6 +2487,7 @@
     document.getElementById('emailConfirmGoBtn').addEventListener('click', () => {
         document.getElementById('emailConfirmOverlay').classList.remove('active');
         showStorefront();
+        showQueuedEmailConfirmedBanner();
     });
     document.getElementById('emailConfirmRetryBtn').addEventListener('click', () => {
         document.getElementById('emailConfirmOverlay').classList.remove('active');
