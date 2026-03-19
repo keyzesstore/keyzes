@@ -122,38 +122,48 @@
     async function handleTokenHashConfirmation() {
         const searchParams = new URLSearchParams(window.location.search || '');
         const tokenHash = searchParams.get('token_hash');
+        console.log('[Email Confirm] token_hash check:', tokenHash ? 'FOUND' : 'NOT FOUND');
         if (!tokenHash) return false;
 
         const overlay = document.getElementById('emailConfirmOverlay');
         if (!overlay) {
-            console.error('[Email Confirm] Overlay element not found in DOM');
+            console.error('[Email Confirm] Overlay element #emailConfirmOverlay not found in DOM');
             return false;
         }
+        console.log('[Email Confirm] Overlay found, showing...');
 
         const loading = document.getElementById('emailConfirmLoading');
         if (!loading) {
-            console.error('[Email Confirm] Loading element not found');
+            console.error('[Email Confirm] Loading element #emailConfirmLoading not found');
             return false;
         }
 
+        // Make overlay visible
+        overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible';
         overlay.classList.add('active');
         loading.style.display = 'flex';
+        console.log('[Email Confirm] Overlay visible, starting verification...');
 
         if (!authReady()) {
+            console.error('[Email Confirm] Auth is not ready');
             showEmailConfirmError('Authentication is not configured. Please contact support.');
             return true;
         }
 
+        console.log('[Email Confirm] Calling verifyOtp with token_hash:', tokenHash.substring(0,20) + '...');
         const { data, error } = await supabaseClient.auth.verifyOtp({
             token_hash: tokenHash,
             type: 'email',
         });
 
         if (error) {
+            console.error('[Email Confirm] verifyOtp error:', error);
             showEmailConfirmError(error.message || 'Could not confirm your email. The link may have expired.');
             return true;
         }
 
+        console.log('[Email Confirm] Verification successful, user:', data.user?.email);
         if (data && data.user) {
             setCurrentCustomer(mapSupabaseUserToCustomer(data.user));
         }
