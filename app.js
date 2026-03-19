@@ -104,16 +104,32 @@
         if (titleEl) titleEl.textContent = title || 'Email confirmed!';
         if (subEl) subEl.textContent = message || 'You are now logged in and ready to shop.';
 
+        // Check parent visibility
+        const parent = overlay.parentElement;
+        console.log('[Email Confirm Success] Parent element:', parent?.tagName, 'display:', window.getComputedStyle(parent).display);
+        
         // Hide all states first
         console.log('[Email Confirm Success] Hiding loading, showing success...');
         loading.style.display = 'none';
         if (error) error.style.display = 'none';
         
-        // Show success state
+        // Show success state - be very explicit
         success.style.display = 'flex';
-        overlay.style.display = 'flex';
+        success.style.visibility = 'visible';
+        success.style.opacity = '1';
+        
+        overlay.style.display = 'flex !important';
         overlay.style.visibility = 'visible';
+        overlay.style.opacity = '1';
         overlay.classList.add('active');
+        
+        // Ensure parent isn't hiding it
+        if (parent && parent.style.display === 'none') {
+            console.warn('[Email Confirm Success] Parent was hidden, showing it...');
+            parent.style.display = 'block';
+        }
+        
+        console.log('[Email Confirm Success] After setting styles - overlay display:', window.getComputedStyle(overlay).display);
         console.log('[Email Confirm Success] Overlay should now be visible');
     }
 
@@ -191,7 +207,9 @@
         queueEmailConfirmedBanner();
 
         clearAuthCallbackUrl();
+        console.log('[Email Confirm] About to show success overlay...');
         showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
+        console.log('[Email Confirm] Success overlay call complete');
         return true;
     }
 
