@@ -80,19 +80,26 @@
         const loading = document.getElementById('emailConfirmLoading');
         const success = document.getElementById('emailConfirmSuccess');
         const error = document.getElementById('emailConfirmError');
-        if (!overlay || !loading || !success || !error) {
+        
+        if (!overlay || !loading || !success) {
+            console.warn('[Email Confirm] Missing overlay elements');
             showToast('Email confirmed. You are now logged in.', 'success');
             return;
         }
 
+        // Update text content
         const titleEl = success.querySelector('.email-confirm-title');
         const subEl = success.querySelector('.email-confirm-sub');
         if (titleEl) titleEl.textContent = title || 'Email confirmed!';
         if (subEl) subEl.textContent = message || 'You are now logged in and ready to shop.';
 
+        // Hide all states first
         loading.style.display = 'none';
-        error.style.display = 'none';
+        if (error) error.style.display = 'none';
+        
+        // Show success state
         success.style.display = 'flex';
+        overlay.style.display = 'flex';
         overlay.classList.add('active');
     }
 
@@ -118,7 +125,19 @@
         if (!tokenHash) return false;
 
         const overlay = document.getElementById('emailConfirmOverlay');
+        if (!overlay) {
+            console.error('[Email Confirm] Overlay element not found in DOM');
+            return false;
+        }
+
+        const loading = document.getElementById('emailConfirmLoading');
+        if (!loading) {
+            console.error('[Email Confirm] Loading element not found');
+            return false;
+        }
+
         overlay.classList.add('active');
+        loading.style.display = 'flex';
 
         if (!authReady()) {
             showEmailConfirmError('Authentication is not configured. Please contact support.');
