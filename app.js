@@ -1546,7 +1546,7 @@
         if (affiliateLinkValue) affiliateLinkValue.value = referralLink;
         if (affiliateApplyCodeInput) affiliateApplyCodeInput.value = profile.referredBy || '';
         if (affiliateUsesCount) affiliateUsesCount.textContent = String(profile.affiliateUses || 0);
-        if (affiliateUniqueCount) affiliateUniqueCount.textContent = String((profile.affiliateUniqueUsers || []).length);
+        if (affiliateUniqueCount) affiliateUniqueCount.textContent = '5%';
         if (affiliateEarnedTotal) affiliateEarnedTotal.textContent = formatMoney(profile.affiliateEarningsTotal || 0) + ' EUR';
         renderOrdersForCurrentCustomer();
     }
