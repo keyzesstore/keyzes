@@ -1294,17 +1294,31 @@
     const notifHistoryPanel = $('#notifHistoryPanel');
     const notifHistoryList = $('#notifHistoryList');
     const notifHistoryClose = $('#notifHistoryClose');
-    let notifHistory = [];
-    let notifUnread = 0;
+    const NOTIF_MAX = 50;
+    let notifHistory = JSON.parse(localStorage.getItem('keyzes_notifHistory') || '[]').map(function(n) { n.time = new Date(n.time); return n; });
+    let notifUnread = Number(localStorage.getItem('keyzes_notifUnread') || '0');
+
+    // restore badge on load
+    if (notifUnread > 0 && notifBellBadge) {
+        notifBellBadge.textContent = notifUnread;
+        notifBellBadge.classList.add('show');
+    }
+
+    function saveNotifState() {
+        localStorage.setItem('keyzes_notifHistory', JSON.stringify(notifHistory));
+        localStorage.setItem('keyzes_notifUnread', notifUnread);
+    }
 
     function addNotification(message, type) {
         type = type || 'info';
         notifHistory.unshift({ message: message, type: type, time: new Date() });
+        if (notifHistory.length > NOTIF_MAX) notifHistory = notifHistory.slice(0, NOTIF_MAX);
         notifUnread++;
         if (notifBellBadge) {
             notifBellBadge.textContent = notifUnread;
             notifBellBadge.classList.add('show');
         }
+        saveNotifState();
         renderNotifHistory();
     }
 
@@ -1340,6 +1354,9 @@
         return d.innerHTML;
     }
 
+    // render stored history on load
+    renderNotifHistory();
+
     if (notifBellBtn) {
         notifBellBtn.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -1350,6 +1367,7 @@
                     notifBellBadge.textContent = '';
                     notifBellBadge.classList.remove('show');
                 }
+                saveNotifState();
                 renderNotifHistory();
             }
         });
