@@ -101,7 +101,7 @@
             const success = document.getElementById('emailConfirmSuccess');
             const error = document.getElementById('emailConfirmError');
 
-            if (loading) loading.style.display = 'flex';
+            if (loading) loading.style.display = 'none';
             if (success) success.style.display = 'none';
             if (error) error.style.display = 'none';
         }, 220);
@@ -165,27 +165,6 @@
         console.log('[Email Confirm Success] After setting styles - overlay display:', window.getComputedStyle(overlay).display);
         console.log('[Email Confirm Success] Overlay should now be visible');
 
-    }
-
-    function queueEmailConfirmedBanner() {
-        try {
-            window.sessionStorage.setItem('keyzesEmailConfirmedBanner', '1');
-        } catch {}
-    }
-
-    function showQueuedEmailConfirmedBanner() {
-        console.log('[Email Confirm Queued] Checking for queued banner...');
-        try {
-            const isQueued = window.sessionStorage.getItem('keyzesEmailConfirmedBanner') === '1';
-            console.log('[Email Confirm Queued] Is queued:', isQueued);
-            if (!isQueued) return;
-            window.sessionStorage.removeItem('keyzesEmailConfirmedBanner');
-        } catch (e) {
-            console.warn('[Email Confirm Queued] sessionStorage error:', e);
-            return;
-        }
-        console.log('[Email Confirm Queued] Showing queued banner overlay...');
-        showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
     }
 
     async function handleTokenHashConfirmation() {
@@ -1367,8 +1346,6 @@
         console.log('[Auth Init] Auth is ready, syncing session...');
         await syncCustomerFromSession();
         if (!isConfirmFlow) handleAuthCallbackFeedback();
-        console.log('[Auth Init] About to check for queued banner...');
-        showQueuedEmailConfirmedBanner();
         supabaseClient.auth.onAuthStateChange((_event, session) => {
             const user = session && session.user;
             setCurrentCustomer(mapSupabaseUserToCustomer(user));
