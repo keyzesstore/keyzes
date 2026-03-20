@@ -688,6 +688,17 @@ a {
     transition: border-color 0.2s;
 }
 
+/* Keep number inputs clean in dark theme */
+.price-field input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.price-field input[type="number"]::-webkit-outer-spin-button,
+.price-field input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .price-field input:focus {
     outline: none;
     border-color: var(--blue-light);
