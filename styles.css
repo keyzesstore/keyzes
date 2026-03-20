@@ -4823,3 +4823,210 @@ a {
         transform: scale(1);
     }
 }
+
+/* Final lock: compact affiliate proportions (reference match) */
+.affiliate-section-card .affiliate-info-cards {
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.affiliate-section-card .affiliate-info-item {
+    gap: 8px;
+    padding: 10px;
+    border-radius: 9px;
+}
+
+.affiliate-section-card .affiliate-info-icon {
+    font-size: 18px;
+}
+
+.affiliate-section-card .affiliate-info-content strong {
+    font-size: 10px;
+}
+
+.affiliate-section-card .affiliate-info-content span {
+    font-size: 10px;
+}
+
+.affiliate-section-card .affiliate-tabs-bar {
+    padding: 6px 0;
+    margin-bottom: 10px;
+}
+
+.affiliate-section-card .affiliate-tab {
+    padding: 6px 10px;
+    font-size: 11px;
+}
+
+.affiliate-section-card .affiliate-main-section {
+    gap: 12px;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.affiliate-section-card .affiliate-hero-left {
+    gap: 10px;
+}
+
+.affiliate-section-card .affiliate-hero-earn {
+    font-size: 34px;
+}
+
+.affiliate-section-card .affiliate-hero-desc {
+    font-size: 34px;
+}
+
+.affiliate-section-card .affiliate-link-input {
+    padding: 9px 10px !important;
+    font-size: 12px !important;
+}
+
+.affiliate-section-card .affiliate-code-section {
+    gap: 8px;
+    padding: 10px;
+}
+
+.affiliate-section-card .affiliate-code-large {
+    font-size: 30px;
+}
+
+.affiliate-section-card .affiliate-hero-right {
+    height: 170px;
+}
+
+.affiliate-section-card .affiliate-character-placeholder {
+    font-size: 62px;
+}
+
+.affiliate-section-card .affiliate-referral-box {
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    margin-bottom: 10px;
+}
+
+.affiliate-section-card .affiliate-referral-icon {
+    font-size: 18px;
+}
+
+.affiliate-section-card .affiliate-referral-content strong {
+    font-size: 11px;
+}
+
+.affiliate-section-card .affiliate-referral-benefit {
+    font-size: 13px;
+}
+
+.affiliate-section-card .affiliate-actions-section {
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 12px;
+    border-radius: 9px;
+}
+
+.affiliate-section-card .affiliate-action-label {
+    font-size: 10px;
+}
+
+.affiliate-section-card .affiliate-create-row {
+    gap: 6px;
+}
+
+.affiliate-section-card .affiliate-create-row input {
+    padding: 7px 9px;
+    font-size: 12px;
+}
+
+.affiliate-section-card .affiliate-message-box {
+    margin: 6px 0 8px;
+    padding: 7px 8px;
+    font-size: 11px;
+}
+
+.affiliate-section-card .affiliate-balance-section {
+    gap: 12px;
+    padding: 12px;
+    border-radius: 9px;
+    margin: 10px 0;
+}
+
+.affiliate-section-card .affiliate-balance-label {
+    font-size: 10px;
+}
+
+.affiliate-section-card .affiliate-balance-value {
+    font-size: 28px;
+}
+
+.affiliate-section-card .affiliate-stats-grid-large {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin: 8px 0 10px;
+}
+
+.affiliate-section-card .affiliate-stat-card {
+    padding: 10px 8px;
+    border-radius: 9px;
+}
+
+.affiliate-section-card .affiliate-stat-label {
+    font-size: 9px;
+    margin-bottom: 6px;
+}
+
+.affiliate-section-card .affiliate-stat-value {
+    font-size: 28px;
+}
+
+.affiliate-section-card .affiliate-tip-box {
+    padding: 9px 10px;
+    font-size: 10px;
+}
+
+@media (max-width: 768px) {
+    .affiliate-section-card .affiliate-main-section {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .affiliate-section-card .affiliate-hero-earn {
+        font-size: 28px;
+    }
+
+    .affiliate-section-card .affiliate-hero-desc {
+        font-size: 21px;
+    }
+
+    .affiliate-section-card .affiliate-hero-right {
+        height: 140px;
+    }
+
+    .affiliate-section-card .affiliate-character-placeholder {
+        font-size: 52px;
+    }
+
+    .affiliate-section-card .affiliate-code-large {
+        font-size: 24px;
+    }
+
+    .affiliate-section-card .affiliate-actions-section {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .affiliate-section-card .affiliate-stats-grid-large {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .affiliate-section-card .affiliate-balance-value {
+        font-size: 24px;
+    }
+
+    .affiliate-section-card .affiliate-stat-value {
+        font-size: 20px;
+    }
+}
