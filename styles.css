@@ -2644,12 +2644,25 @@ a {
 }
 
 .g4-hero-character {
-    font-size: 48px;
     position: absolute;
     right: 14px;
     top: 50%;
     transform: translateY(-50%);
-    opacity: 0.85;
+    width: 68px;
+    height: 68px;
+    border-radius: 14px;
+    background: rgba(12, 17, 32, 0.56);
+    border: 1px solid rgba(100, 115, 165, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.95;
+}
+
+.g4-hero-character img {
+    width: 52px;
+    height: 52px;
+    object-fit: contain;
 }
 
 .g4-hero-right {
@@ -2891,8 +2904,13 @@ a {
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
     flex-shrink: 0;
+}
+
+.g4-stat-icon svg {
+    width: 18px;
+    height: 18px;
+    color: #cfe0ff;
 }
 
 .g4-stat-icon-blue {
@@ -2972,8 +2990,14 @@ a {
     }
 
     .g4-hero-character {
-        font-size: 36px;
+        width: 54px;
+        height: 54px;
         right: 8px;
+    }
+
+    .g4-hero-character img {
+        width: 40px;
+        height: 40px;
     }
 
     .g4-mid-row {
