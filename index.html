@@ -352,11 +352,14 @@
                                         <button type="button" class="admin-btn admin-btn-primary" id="affiliateCopyBtn">Copy Referral Link</button>
                                     </div>
                                     <div class="affiliate-code-box" id="affiliateCodeBox" style="display:none;">
-                                        <div>
+                                        <div style="flex: 1;">
                                             <span class="settings-hint" style="margin:0;">Your promotional code</span>
                                             <strong id="affiliateCodeValue">-</strong>
                                         </div>
-                                        <span class="affiliate-code-rate">Earn 3%</span>
+                                        <div style="display: flex; gap: 8px; align-items: center;">
+                                            <span class="affiliate-code-rate">Earn 3%</span>
+                                            <button type="button" class="admin-btn admin-btn-danger" id="affiliateDeleteBtn" style="padding: 8px 14px; font-size: 12px;">Delete Code</button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="affiliate-empty-card">

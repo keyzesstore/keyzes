@@ -2578,8 +2578,9 @@ a {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     background: rgba(15, 22, 40, 0.74);
+    flex-wrap: wrap;
 }
 
 .affiliate-code-box strong {

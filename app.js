@@ -1279,6 +1279,7 @@
     const affiliateLinkBox = $('#affiliateLinkBox');
     const affiliateLinkValue = $('#affiliateLinkValue');
     const affiliateCopyBtn = $('#affiliateCopyBtn');
+    const affiliateDeleteBtn = $('#affiliateDeleteBtn');
     const affiliateBalanceLarge = $('#affiliateBalanceLarge');
     const affiliateUsesCount = $('#affiliateUsesCount');
     const affiliateUniqueCount = $('#affiliateUniqueCount');
@@ -2217,8 +2218,14 @@
             if (!code) {
                 code = generateAffiliateCode(currentCustomer.name || 'KEYZES');
             }
-            if (!profile.affiliateCode && affiliateCodes[code] && affiliateCodes[code] !== normalizeEmail(currentCustomer.email)) {
-                showToast('Affiliate code already taken. Try another.', 'error');
+
+            const normalizedEmail = normalizeEmail(currentCustomer.email);
+            const codeOwner = affiliateCodes[code];
+            const userOwnsCode = codeOwner && normalizeEmail(codeOwner) === normalizedEmail;
+            const codeTakenByOther = codeOwner && !userOwnsCode;
+
+            if (codeTakenByOther) {
+                showToast('Affiliate code "' + code + '" is already taken by another creator. Try a different code.', 'error');
                 return;
             }
 
@@ -2226,11 +2233,31 @@
                 delete affiliateCodes[profile.affiliateCode];
             }
             profile.affiliateCode = code;
-            affiliateCodes[code] = normalizeEmail(currentCustomer.email);
+            affiliateCodes[code] = normalizedEmail;
             saveCustomerProgramState();
             if (affiliateCodeInput) affiliateCodeInput.value = code;
             renderAccountProgramPanels();
             showToast('Affiliate code saved: ' + code + ' (' + AFFILIATE_COMMISSION_LABEL + ' commission)', 'success');
+        });
+    }
+
+    if (affiliateDeleteBtn) {
+        affiliateDeleteBtn.addEventListener('click', () => {
+            if (!currentCustomer) return;
+            const profile = getCustomerProfile(currentCustomer.email, true);
+            if (!profile.affiliateCode) return;
+
+            if (confirm('Delete affiliate code "' + profile.affiliateCode + '"? You will no longer earn commissions from this code.')) {
+                const oldCode = profile.affiliateCode;
+                delete affiliateCodes[oldCode];
+                profile.affiliateCode = '';
+                profile.referredBy = '';
+                saveCustomerProgramState();
+                updateCheckoutState();
+                renderAccountProgramPanels();
+                if (affiliateCodeInput) affiliateCodeInput.value = '';
+                showToast('Affiliate code deleted. Create a new one anytime.', 'info');
+            }
         });
     }
 
