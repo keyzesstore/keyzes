@@ -217,9 +217,6 @@
             setCurrentCustomer(mapSupabaseUserToCustomer(data.user));
         }
 
-        // Persist the success banner request so it appears after redirect/login flow.
-        queueEmailConfirmedBanner();
-
         clearAuthCallbackUrl();
         console.log('[Email Confirm] About to show success overlay...');
         showEmailConfirmSuccessOverlay('Email confirmed!', 'You are now logged in and ready to shop.');
@@ -2592,7 +2589,6 @@
     document.getElementById('emailConfirmGoBtn').addEventListener('click', () => {
         hideEmailConfirmOverlay();
         showStorefront();
-        showQueuedEmailConfirmedBanner();
     });
     document.getElementById('emailConfirmRetryBtn').addEventListener('click', () => {
         hideEmailConfirmOverlay();
