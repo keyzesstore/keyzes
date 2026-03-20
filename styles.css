@@ -2477,6 +2477,24 @@ a {
     background: rgba(16, 22, 38, 0.62);
 }
 
+.affiliate-apply-box {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    background: rgba(16, 22, 38, 0.62);
+}
+
+.affiliate-user-discount {
+    margin: -4px 0 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.affiliate-user-discount strong {
+    color: #8cf26f;
+}
+
 .affiliate-link-box input {
     width: 100%;
     background: #0d1324;
@@ -2515,6 +2533,21 @@ a {
 .affiliate-candle-down {
     fill: #ea5757;
     stroke: #ea5757;
+}
+
+.affiliate-pattern-line {
+    stroke: #5f66ff;
+    stroke-width: 2.4;
+    fill: none;
+    opacity: 0.9;
+}
+
+.affiliate-pattern-label {
+    fill: #c7c9db;
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+    opacity: 0.8;
 }
 
 .affiliate-withdraw-box {

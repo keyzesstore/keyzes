@@ -1235,6 +1235,7 @@
     const customerLoginPassword = $('#customerLoginPassword');
     const customerSignupName = $('#customerSignupName');
     const customerSignupEmail = $('#customerSignupEmail');
+    const customerSignupReferralCode = $('#customerSignupReferralCode');
     const customerSignupPassword = $('#customerSignupPassword');
     const customerSignupConfirm = $('#customerSignupConfirm');
     const customerForgotPasswordBtn = $('#customerForgotPasswordBtn');
@@ -1256,6 +1257,8 @@
     const accountTotalBalance = $('#accountTotalBalance');
     const storeCreditTopupBtn = $('#storeCreditTopupBtn');
     const affiliateCodeInput = $('#affiliateCodeInput');
+    const affiliateApplyCodeInput = $('#affiliateApplyCodeInput');
+    const affiliateApplyCodeBtn = $('#affiliateApplyCodeBtn');
     const affiliateCreateBtn = $('#affiliateCreateBtn');
     const affiliateCodeBox = $('#affiliateCodeBox');
     const affiliateCodeValue = $('#affiliateCodeValue');
@@ -1280,6 +1283,17 @@
 
     function isValidEmail(value) {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+    }
+
+    function validateReferralCodeForEmail(code, email) {
+        const cleaned = cleanAffiliateCode(code);
+        if (!cleaned) return { ok: false, message: 'Enter a referral code.' };
+        const ownerEmail = getRefOwnerEmail(cleaned);
+        if (!ownerEmail) return { ok: false, message: 'Referral code does not exist.' };
+        if (email && normalizeEmail(ownerEmail) === normalizeEmail(email)) {
+            return { ok: false, message: 'You cannot use your own affiliate code.' };
+        }
+        return { ok: true, cleaned, ownerEmail };
     }
 
     function setInlineFieldError(input, message) {
@@ -1512,7 +1526,25 @@
             `;
         }).join('');
 
-        affiliateChartBars.innerHTML = `<svg viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" aria-label="Affiliate earnings chart">${svgCandles}</svg>`;
+        const cupStartX = colW * 1.6;
+        const cupEndX = colW * 5.8;
+        const cupBottomY = chartH - 58;
+        const cupPath = `M ${cupStartX} ${chartH - 100} Q ${(cupStartX + cupEndX) / 2} ${cupBottomY} ${cupEndX} ${chartH - 100}`;
+        const handleX1 = colW * 5.9;
+        const handleX2 = colW * 6.95;
+        const handleY1 = chartH - 102;
+        const handleY2 = chartH - 145;
+        const handleY3 = chartH - 118;
+
+        const overlays = `
+            <path d="${cupPath}" class="affiliate-pattern-line" />
+            <line x1="${handleX1}" y1="${handleY1}" x2="${handleX2}" y2="${handleY2}" class="affiliate-pattern-line" />
+            <line x1="${handleX1}" y1="${handleY1 - 18}" x2="${handleX2}" y2="${handleY3}" class="affiliate-pattern-line" />
+            <text x="${(cupStartX + cupEndX) / 2}" y="${chartH - 24}" text-anchor="middle" class="affiliate-pattern-label">CUP</text>
+            <text x="${handleX1 + 6}" y="${chartH - 78}" class="affiliate-pattern-label">HANDLE</text>
+        `;
+
+        affiliateChartBars.innerHTML = `<svg viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" aria-label="Affiliate earnings chart">${svgCandles}${overlays}</svg>`;
     }
 
     function renderOrdersForCurrentCustomer() {
@@ -1571,6 +1603,7 @@
         if (affiliateLinkBox) affiliateLinkBox.style.display = profile.affiliateCode ? '' : 'none';
         if (affiliateCodeValue) affiliateCodeValue.textContent = profile.affiliateCode || '-';
         if (affiliateLinkValue) affiliateLinkValue.value = referralLink;
+        if (affiliateApplyCodeInput) affiliateApplyCodeInput.value = profile.referredBy || '';
         if (affiliateUsesCount) affiliateUsesCount.textContent = String(profile.affiliateUses || 0);
         if (affiliateUniqueCount) affiliateUniqueCount.textContent = String((profile.affiliateUniqueUsers || []).length);
         if (affiliateEarnedTotal) affiliateEarnedTotal.textContent = formatMoney(profile.affiliateEarningsTotal || 0) + ' EUR';
@@ -1663,6 +1696,11 @@
             tab.classList.toggle('active', tab.dataset.authMode === (loginMode ? 'login' : 'signup'));
         });
         customerAuthTitle.textContent = loginMode ? 'Access Your Account' : 'Create Your Account';
+
+        if (!loginMode && customerSignupReferralCode) {
+            const pendingCode = cleanAffiliateCode(localStorage.getItem(STORAGE_PENDING_REF));
+            customerSignupReferralCode.value = pendingCode || customerSignupReferralCode.value || '';
+        }
     }
 
     function openCustomerAuth(mode, introText) {
@@ -1947,7 +1985,17 @@
         }
         const name = customerSignupName.value.trim();
         const email = normalizeEmail(customerSignupEmail.value);
+        const signupRefCode = cleanAffiliateCode(customerSignupReferralCode ? customerSignupReferralCode.value : '');
         const password = customerSignupPassword.value;
+
+        if (signupRefCode) {
+            const referralCheck = validateReferralCodeForEmail(signupRefCode, email);
+            if (!referralCheck.ok) {
+                customerSignupError.textContent = referralCheck.message;
+                return;
+            }
+            localStorage.setItem(STORAGE_PENDING_REF, referralCheck.cleaned);
+        }
 
         customerSignupError.textContent = '';
         hideVerifyBox();
@@ -2167,6 +2215,35 @@
             if (affiliateCodeInput) affiliateCodeInput.value = code;
             renderAccountProgramPanels();
             showToast('Affiliate code saved: ' + code + ' (' + AFFILIATE_RATE_LABEL + ' commission)', 'success');
+        });
+    }
+
+    if (affiliateApplyCodeBtn) {
+        affiliateApplyCodeBtn.addEventListener('click', () => {
+            if (!currentCustomer) {
+                showToast('Please log in first.', 'error');
+                return;
+            }
+
+            const candidate = cleanAffiliateCode(affiliateApplyCodeInput ? affiliateApplyCodeInput.value : '');
+            const check = validateReferralCodeForEmail(candidate, currentCustomer.email);
+            if (!check.ok) {
+                if (affiliateActionMsg) affiliateActionMsg.textContent = check.message;
+                return;
+            }
+
+            const profile = getCustomerProfile(currentCustomer.email, true);
+            if (profile.referredBy && profile.referredBy !== check.cleaned) {
+                if (affiliateActionMsg) affiliateActionMsg.textContent = 'Referral code is already set for your account.';
+                return;
+            }
+
+            profile.referredBy = check.cleaned;
+            saveCustomerProgramState();
+            updateCheckoutState();
+            if (affiliateApplyCodeInput) affiliateApplyCodeInput.value = check.cleaned;
+            if (affiliateActionMsg) affiliateActionMsg.textContent = 'Referral code applied. You get ' + AFFILIATE_RATE_LABEL + ' discount.';
+            showToast('Referral code applied successfully.', 'success');
         });
     }
 
