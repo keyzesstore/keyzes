@@ -195,10 +195,10 @@
         const params = new URLSearchParams(window.location.search || '');
         const refCode = cleanAffiliateCode(params.get('ref'));
         if (!refCode) return;
-        const ownerEmail = getRefOwnerEmail(refCode);
-        if (!ownerEmail) return;
 
-        if (currentCustomer && normalizeEmail(currentCustomer.email) === normalizeEmail(ownerEmail)) {
+        const ownerEmail = getRefOwnerEmail(refCode);
+
+        if (ownerEmail && currentCustomer && normalizeEmail(currentCustomer.email) === normalizeEmail(ownerEmail)) {
             params.delete('ref');
             const cleanSearchSelf = params.toString();
             const cleanUrlSelf = window.location.pathname + (cleanSearchSelf ? ('?' + cleanSearchSelf) : '') + window.location.hash;
