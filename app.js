@@ -1288,6 +1288,83 @@
     const affiliateTransferCreditBtn = $('#affiliateTransferCreditBtn');
     const affiliateActionMsg = $('#affiliateActionMsg');
 
+    /* -- Notification Bell -- */
+    const notifBellBtn = $('#notifBellBtn');
+    const notifBellBadge = $('#notifBellBadge');
+    const notifHistoryPanel = $('#notifHistoryPanel');
+    const notifHistoryList = $('#notifHistoryList');
+    const notifHistoryClose = $('#notifHistoryClose');
+    let notifHistory = [];
+    let notifUnread = 0;
+
+    function addNotification(message, type) {
+        type = type || 'info';
+        notifHistory.unshift({ message: message, type: type, time: new Date() });
+        notifUnread++;
+        if (notifBellBadge) {
+            notifBellBadge.textContent = notifUnread;
+            notifBellBadge.classList.add('show');
+        }
+        renderNotifHistory();
+    }
+
+    function renderNotifHistory() {
+        if (!notifHistoryList) return;
+        if (notifHistory.length === 0) {
+            notifHistoryList.innerHTML = '<div class="notif-history-empty">No notifications yet</div>';
+            return;
+        }
+        notifHistoryList.innerHTML = notifHistory.map(function(n) {
+            var ago = getTimeAgo(n.time);
+            return '<div class="notif-history-item">' +
+                '<span class="notif-history-dot ' + n.type + '"></span>' +
+                '<span>' + escapeHTML(n.message) + '</span>' +
+                '<span class="notif-history-time">' + ago + '</span>' +
+            '</div>';
+        }).join('');
+    }
+
+    function getTimeAgo(date) {
+        var seconds = Math.floor((new Date() - date) / 1000);
+        if (seconds < 60) return 'just now';
+        var minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return minutes + 'm ago';
+        var hours = Math.floor(minutes / 60);
+        if (hours < 24) return hours + 'h ago';
+        return Math.floor(hours / 24) + 'd ago';
+    }
+
+    function escapeHTML(str) {
+        var d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    if (notifBellBtn) {
+        notifBellBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var isOpen = notifHistoryPanel.classList.toggle('open');
+            if (isOpen) {
+                notifUnread = 0;
+                if (notifBellBadge) {
+                    notifBellBadge.textContent = '';
+                    notifBellBadge.classList.remove('show');
+                }
+                renderNotifHistory();
+            }
+        });
+    }
+    if (notifHistoryClose) {
+        notifHistoryClose.addEventListener('click', function() {
+            notifHistoryPanel.classList.remove('open');
+        });
+    }
+    document.addEventListener('click', function(e) {
+        if (notifHistoryPanel && !notifHistoryPanel.contains(e.target) && notifBellBtn && !notifBellBtn.contains(e.target)) {
+            notifHistoryPanel.classList.remove('open');
+        }
+    });
+
     function isCurrentUserAdmin() {
         return !!currentCustomer && normalizeEmail(currentCustomer.email) === ADMIN_EMAIL;
     }
@@ -1565,6 +1642,7 @@
         if (mobileAccountTrigger) mobileAccountTrigger.style.display = 'none';
         if ($('#adminTrigger')) $('#adminTrigger').style.display = isAdminCustomer ? '' : 'none';
         if (mobileAdminTrigger) mobileAdminTrigger.style.display = isAdminCustomer ? '' : 'none';
+        if (notifBellBtn) notifBellBtn.style.display = isSignedIn ? '' : 'none';
 
         $('#customerSessionName').textContent = displayName;
         $('#mobileSessionName').textContent = displayName;
@@ -2238,10 +2316,16 @@
             if (!currentCustomer) return;
             const profile = getCustomerProfile(currentCustomer.email, true);
             if (Number(profile.affiliateBalance || 0) < 1) {
-                if (affiliateActionMsg) affiliateActionMsg.textContent = 'Cashout becomes available when affiliate balance reaches at least 1.00 EUR.';
+                var msg = 'Cashout becomes available when affiliate balance reaches at least 1.00 EUR.';
+                if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
+                showToast(msg, 'error');
+                addNotification(msg, 'error');
                 return;
             }
-            if (affiliateActionMsg) affiliateActionMsg.textContent = 'For cashout contact keyzes.store@gmail.com with your account email and requested amount.';
+            var msg = 'For cashout contact keyzes.store@gmail.com with your account email and requested amount.';
+            if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
+            showToast(msg, 'info');
+            addNotification(msg, 'info');
         });
     }
 
@@ -2251,13 +2335,19 @@
             const profile = getCustomerProfile(currentCustomer.email, true);
             const amount = Number(profile.affiliateBalance || 0);
             if (amount <= 0) {
-                if (affiliateActionMsg) affiliateActionMsg.textContent = 'No affiliate balance available to transfer.';
+                var msg = 'No affiliate balance available to transfer.';
+                if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
+                showToast(msg, 'error');
+                addNotification(msg, 'error');
                 return;
             }
             profile.storeCredit = Number(profile.storeCredit || 0) + amount;
             profile.affiliateBalance = 0;
             saveCustomerProgramState();
-            if (affiliateActionMsg) affiliateActionMsg.textContent = 'Transferred ' + formatMoney(amount) + ' EUR to store credit. This amount is no longer cashout eligible.';
+            var msg = 'Transferred ' + formatMoney(amount) + ' EUR to store credit.';
+            if (affiliateActionMsg) affiliateActionMsg.textContent = msg + ' This amount is no longer cashout eligible.';
+            showToast(msg, 'success');
+            addNotification(msg, 'success');
             renderAccountProgramPanels();
         });
     }
