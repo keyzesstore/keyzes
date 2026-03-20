@@ -1284,7 +1284,6 @@
     const affiliateUsesCount = $('#affiliateUsesCount');
     const affiliateUniqueCount = $('#affiliateUniqueCount');
     const affiliateEarnedTotal = $('#affiliateEarnedTotal');
-    const affiliateChartBars = $('#affiliateChartBars');
     const affiliateWithdrawEmailBtn = $('#affiliateWithdrawEmailBtn');
     const affiliateTransferCreditBtn = $('#affiliateTransferCreditBtn');
     const affiliateActionMsg = $('#affiliateActionMsg');
@@ -1486,83 +1485,6 @@
         return profile.avatar || buildDefaultAvatar(customer.name || 'K');
     }
 
-    function renderAffiliateChart(profile) {
-        if (!affiliateChartBars) return;
-        const days = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setHours(0, 0, 0, 0);
-            d.setDate(d.getDate() - i);
-            days.push(d);
-        }
-        const values = days.map(d => {
-            const start = d.getTime();
-            const end = start + 86400000;
-            return (profile.affiliateHistory || []).reduce((sum, row) => {
-                return row.createdAt >= start && row.createdAt < end ? sum + Number(row.commission || 0) : sum;
-            }, 0);
-        });
-
-        const candles = [];
-        let previousClose = Math.max(0.4, values[0] || 0.4);
-        for (let i = 0; i < values.length; i++) {
-            const drift = values[i] > 0 ? values[i] : (previousClose * (0.82 + (i % 3) * 0.08));
-            const open = previousClose;
-            const close = Math.max(0.2, drift);
-            const high = Math.max(open, close) * (1.08 + (i % 2) * 0.04);
-            const low = Math.max(0.1, Math.min(open, close) * (0.86 - (i % 2) * 0.04));
-            candles.push({ open, high, low, close });
-            previousClose = close;
-        }
-
-        const maxValue = Math.max(1, ...candles.map(c => c.high));
-        const minValue = Math.min(...candles.map(c => c.low));
-        const range = Math.max(0.0001, maxValue - minValue);
-        const chartW = 760;
-        const chartH = 260;
-        const padTop = 12;
-        const padBottom = 24;
-        const drawH = chartH - padTop - padBottom;
-        const colW = chartW / candles.length;
-        const bodyW = Math.max(8, Math.min(18, colW * 0.42));
-
-        const y = val => padTop + ((maxValue - val) / range) * drawH;
-        const svgCandles = candles.map((c, i) => {
-            const cx = (i * colW) + colW / 2;
-            const openY = y(c.open);
-            const closeY = y(c.close);
-            const highY = y(c.high);
-            const lowY = y(c.low);
-            const top = Math.min(openY, closeY);
-            const height = Math.max(2, Math.abs(openY - closeY));
-            const cls = c.close >= c.open ? 'affiliate-candle-up' : 'affiliate-candle-down';
-            return `
-                <line x1="${cx}" y1="${highY}" x2="${cx}" y2="${lowY}" class="${cls}" stroke-width="2" />
-                <rect x="${cx - bodyW / 2}" y="${top}" width="${bodyW}" height="${height}" rx="2" class="${cls}" />
-            `;
-        }).join('');
-
-        const cupStartX = colW * 1.6;
-        const cupEndX = colW * 5.8;
-        const cupBottomY = chartH - 58;
-        const cupPath = `M ${cupStartX} ${chartH - 100} Q ${(cupStartX + cupEndX) / 2} ${cupBottomY} ${cupEndX} ${chartH - 100}`;
-        const handleX1 = colW * 5.9;
-        const handleX2 = colW * 6.95;
-        const handleY1 = chartH - 102;
-        const handleY2 = chartH - 145;
-        const handleY3 = chartH - 118;
-
-        const overlays = `
-            <path d="${cupPath}" class="affiliate-pattern-line" />
-            <line x1="${handleX1}" y1="${handleY1}" x2="${handleX2}" y2="${handleY2}" class="affiliate-pattern-line" />
-            <line x1="${handleX1}" y1="${handleY1 - 18}" x2="${handleX2}" y2="${handleY3}" class="affiliate-pattern-line" />
-            <text x="${(cupStartX + cupEndX) / 2}" y="${chartH - 24}" text-anchor="middle" class="affiliate-pattern-label">CUP</text>
-            <text x="${handleX1 + 6}" y="${chartH - 78}" class="affiliate-pattern-label">HANDLE</text>
-        `;
-
-        affiliateChartBars.innerHTML = `<svg viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" aria-label="Affiliate earnings chart">${svgCandles}${overlays}</svg>`;
-    }
-
     function renderOrdersForCurrentCustomer() {
         if (!customerOrdersList || !currentCustomer) return;
         const orders = getCustomerOrders(currentCustomer.email);
@@ -1624,7 +1546,6 @@
         if (affiliateUsesCount) affiliateUsesCount.textContent = String(profile.affiliateUses || 0);
         if (affiliateUniqueCount) affiliateUniqueCount.textContent = String((profile.affiliateUniqueUsers || []).length);
         if (affiliateEarnedTotal) affiliateEarnedTotal.textContent = formatMoney(profile.affiliateEarningsTotal || 0) + ' EUR';
-        renderAffiliateChart(profile);
         renderOrdersForCurrentCustomer();
     }
 
