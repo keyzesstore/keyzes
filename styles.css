@@ -287,6 +287,19 @@ a {
     flex: 1;
     padding: 8px 0;
 }
+.notif-history-list::-webkit-scrollbar {
+    width: 6px;
+}
+.notif-history-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.notif-history-list::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.25);
+    border-radius: 3px;
+}
+.notif-history-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.4);
+}
 .notif-history-item {
     display: flex;
     align-items: flex-start;
