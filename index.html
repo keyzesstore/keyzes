@@ -318,86 +318,142 @@
 
                     <div class="account-pane" data-account-pane="affiliate">
                         <section class="settings-card affiliate-section-card">
-                            <h3>Affiliate Program</h3>
-                            <p class="settings-hint">Invite players with your code, earn 3% from each order, and your users get 5% off.</p>
-
-                            <div class="affiliate-hero-container">
-                                <div class="affiliate-hero-text">
-                                    <div class="affiliate-hero-main">EARN 3%</div>
-                                    <div class="affiliate-hero-sub">FROM EVERY PAYMENT</div>
-                                </div>
+                            <!-- Intro Section with Info Cards -->
+                            <div class="affiliate-intro-section">
+                                <h3>Affiliate Program</h3>
+                                <p class="settings-hint">Invite players with your code, earn 3% from each order, and your users get 5% off.</p>
                                 
-                                <div class="affiliate-code-display" id="affiliateCodeBox" style="display:none;">
-                                    <div class="affiliate-code-label">Your promotional code</div>
-                                    <div class="affiliate-code-value-large" id="affiliateCodeValue">-</div>
-                                    <button type="button" class="admin-btn admin-btn-danger" id="affiliateDeleteBtn">Delete Code</button>
-                                </div>
-
-                                <div class="affiliate-link-display" id="affiliateLinkBox" style="display:none;">
-                                    <div class="affiliate-link-label">Your referral link</div>
-                                    <input type="text" id="affiliateLinkValue" readonly class="affiliate-link-input">
-                                    <button type="button" class="admin-btn admin-btn-primary" id="affiliateCopyBtn">Copy Referral Link</button>
+                                <div class="affiliate-info-cards">
+                                    <div class="affiliate-info-item">
+                                        <div class="affiliate-info-icon">📢</div>
+                                        <div class="affiliate-info-content">
+                                            <strong>Share Code</strong>
+                                            <span>Create and share your unique code with friends</span>
+                                        </div>
+                                    </div>
+                                    <div class="affiliate-info-item">
+                                        <div class="affiliate-info-icon">📊</div>
+                                        <div class="affiliate-info-content">
+                                            <strong>Earn Commission</strong>
+                                            <span>Get 3% from every purchase made with your code</span>
+                                        </div>
+                                    </div>
+                                    <div class="affiliate-info-item">
+                                        <div class="affiliate-info-icon">💰</div>
+                                        <div class="affiliate-info-content">
+                                            <strong>Withdraw Earnings</strong>
+                                            <span>Transfer balance to credit or via email cashout</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div class="affiliate-actions-row">
-                                <div class="affiliate-create-section">
-                                    <span class="affiliate-section-label">Create Your Code</span>
+                            <!-- Tabs Bar -->
+                            <div class="affiliate-tabs-bar">
+                                <button class="affiliate-tab active">Dashboard</button>
+                                <button class="affiliate-tab">PR Materials</button>
+                                <button class="affiliate-tab">FAQ</button>
+                                <div class="affiliate-tab-spacer"></div>
+                                <a href="#" class="affiliate-tab-link">Get free codes</a>
+                            </div>
+
+                            <!-- Main Hero Section -->
+                            <div class="affiliate-main-section">
+                                <div class="affiliate-hero-left">
+                                    <div class="affiliate-hero-title">
+                                        <div class="affiliate-hero-earn">EARN 3%</div>
+                                        <div class="affiliate-hero-desc">FROM EVERY PAYMENT</div>
+                                    </div>
+
+                                    <!-- Your Referral Link -->
+                                    <div class="affiliate-link-section" id="affiliateLinkBox" style="display:none;">
+                                        <label style="font-size: 12px; color: #9eaed8; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700;">Your referral link</label>
+                                        <input type="text" id="affiliateLinkValue" readonly class="affiliate-link-input" placeholder="Your referral link">
+                                        <button type="button" class="admin-btn admin-btn-primary" id="affiliateCopyBtn">Copy Referral Link</button>
+                                    </div>
+
+                                    <!-- Your Promotional Code -->
+                                    <div class="affiliate-code-section" id="affiliateCodeBox" style="display:none;">
+                                        <div class="affiliate-code-display-box">
+                                            <span>Your promotional code</span>
+                                            <div class="affiliate-code-large" id="affiliateCodeValue">-</div>
+                                        </div>
+                                        <button type="button" class="admin-btn admin-btn-danger" id="affiliateDeleteBtn">Delete Code</button>
+                                    </div>
+                                </div>
+
+                                <!-- Character Placeholder -->
+                                <div class="affiliate-hero-right">
+                                    <div class="affiliate-character-placeholder">🎮</div>
+                                </div>
+                            </div>
+
+                            <!-- Referral Benefit Highlight -->
+                            <div class="affiliate-referral-box">
+                                <div class="affiliate-referral-icon">🎁</div>
+                                <div class="affiliate-referral-content">
+                                    <strong>People using your code get:</strong>
+                                    <div class="affiliate-referral-benefit">+5% deposit boost on all products</div>
+                                </div>
+                            </div>
+
+                            <!-- Actions Section -->
+                            <div class="affiliate-actions-section">
+                                <div class="affiliate-action-group">
+                                    <label class="affiliate-action-label">Create Your Code</label>
                                     <div class="affiliate-create-row">
                                         <input type="text" id="affiliateCodeInput" placeholder="Code (A-Z, 0-9)">
-                                        <button type="button" class="admin-btn admin-btn-primary" id="affiliateCreateBtn">Create Code</button>
+                                        <button type="button" class="admin-btn admin-btn-primary" id="affiliateCreateBtn">Create</button>
                                     </div>
                                 </div>
-                                <div class="affiliate-apply-section">
-                                    <span class="affiliate-section-label">Apply Other's Code</span>
+                                <div class="affiliate-action-group">
+                                    <label class="affiliate-action-label">Apply Other's Code</label>
                                     <div class="affiliate-create-row">
                                         <input type="text" id="affiliateApplyCodeInput" placeholder="Enter referral code">
-                                        <button type="button" class="admin-btn admin-btn-outline" id="affiliateApplyCodeBtn">Apply Code</button>
+                                        <button type="button" class="admin-btn admin-btn-outline" id="affiliateApplyCodeBtn">Apply</button>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="affiliate-message-box" id="affiliateActionMsg"></div>
 
-                            <div class="affiliate-user-discount-banner">People using your code get <strong>-5% discount</strong> on all products.</div>
-
-                            <div class="affiliate-balance-section">
-                                <div class="affiliate-balance-main">
-                                    <span class="affiliate-balance-label">Withdrawable amount</span>
-                                    <div class="affiliate-balance-value" id="affiliateBalanceLarge">0.00 EUR</div>
-                                    <small class="affiliate-balance-min">Min. 1.00 EUR</small>
+                            <!-- Balance Card -->
+                            <div class="affiliate-balance-section" style="background: rgba(15, 22, 40, 0.5); border: 1px solid rgba(112, 124, 171, 0.28); border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <div>
+                                    <div style="font-size: 12px; color: #9eaed8; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 700; margin-bottom: 8px;">Withdrawable Amount</div>
+                                    <div class="affiliate-balance-value" id="affiliateBalanceLarge" style="font-size: 32px; color: #ffc858;">0.00 EUR</div>
+                                    <small style="color: #6d7ba6; font-size: 11px;">Min. 1.00 EUR</small>
                                 </div>
                                 <button type="button" class="admin-btn admin-btn-outline" id="affiliateWithdrawEmailBtn">Withdraw</button>
                             </div>
 
-                            <div class="affiliate-stats-grid-large">
-                                <div class="affiliate-stat-card">
-                                    <div class="affiliate-stat-label">Active Referrals</div>
-                                    <div class="affiliate-stat-value" id="affiliateUsesCount">0</div>
+                            <!-- Stats Row -->
+                            <div class="affiliate-stats-grid-large" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px;">
+                                <div class="affiliate-stat-card" style="padding: 16px 12px;">
+                                    <div class="affiliate-stat-label" style="font-size: 12px; color: #9eaed8; letter-spacing: 0.06em; margin-bottom: 6px;">Active Referrals</div>
+                                    <div class="affiliate-stat-value" id="affiliateUsesCount" style="font-size: 26px;">0</div>
                                 </div>
-                                <div class="affiliate-stat-card">
-                                    <div class="affiliate-stat-label">Unique Buyers</div>
-                                    <div class="affiliate-stat-value" id="affiliateUniqueCount">0</div>
+                                <div class="affiliate-stat-card" style="padding: 16px 12px;">
+                                    <div class="affiliate-stat-label" style="font-size: 12px; color: #9eaed8; letter-spacing: 0.06em; margin-bottom: 6px;">Unique Buyers</div>
+                                    <div class="affiliate-stat-value" id="affiliateUniqueCount" style="font-size: 26px;">0</div>
                                 </div>
-                                <div class="affiliate-stat-card">
-                                    <div class="affiliate-stat-label">Total Earned</div>
-                                    <div class="affiliate-stat-value" id="affiliateEarnedTotal">0.00 EUR</div>
+                                <div class="affiliate-stat-card" style="padding: 16px 12px;">
+                                    <div class="affiliate-stat-label" style="font-size: 12px; color: #9eaed8; letter-spacing: 0.06em; margin-bottom: 6px;">Total Earned</div>
+                                    <div class="affiliate-stat-value" id="affiliateEarnedTotal" style="font-size: 26px;">0.00 EUR</div>
                                 </div>
-                                <div class="affiliate-stat-card">
-                                    <div class="affiliate-stat-label">Your Rate</div>
-                                    <div class="affiliate-stat-value">3%</div>
-                                </div>
-                                <div class="affiliate-stat-card">
-                                    <div class="affiliate-stat-label">User Discount</div>
-                                    <div class="affiliate-stat-value">5%</div>
+                                <div class="affiliate-stat-card" style="padding: 16px 12px;">
+                                    <div class="affiliate-stat-label" style="font-size: 12px; color: #9eaed8; letter-spacing: 0.06em; margin-bottom: 6px;">Your Code</div>
+                                    <div class="affiliate-stat-value" id="affiliateCodeValueBottom" style="font-size: 26px;">-</div>
                                 </div>
                             </div>
 
-                            <div class="affiliate-withdraw-box">
-                                <p class="settings-hint" style="margin:0;">Cashout is available only from affiliate balance and only from €1.00. Withdraw via support email or transfer to store credit.</p>
-                                <div class="store-credit-actions">
-                                    <button type="button" class="admin-btn admin-btn-primary" id="affiliateTransferCreditBtn">Transfer to Store Credit</button>
-                                </div>
+                            <!-- Info Footer -->
+                            <div style="padding: 14px; background: rgba(139, 92, 246, 0.12); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; font-size: 12px; color: #b4bfdf; line-height: 1.5;">
+                                <strong>💡 Tip:</strong> Cashout is available only from your affiliate balance and only from €1.00. You can withdraw via support email or transfer to store credit.
+                            </div>
+
+                            <div class="store-credit-actions" style="margin-top: 20px;">
+                                <button type="button" class="admin-btn admin-btn-primary" id="affiliateTransferCreditBtn">Transfer to Store Credit</button>
                             </div>
                         </section>
                     </div>

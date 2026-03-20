@@ -1541,6 +1541,8 @@
         if (affiliateCodeBox) affiliateCodeBox.style.display = profile.affiliateCode ? '' : 'none';
         if (affiliateLinkBox) affiliateLinkBox.style.display = profile.affiliateCode ? '' : 'none';
         if (affiliateCodeValue) affiliateCodeValue.textContent = profile.affiliateCode || '-';
+        const affiliateCodeValueBottom = $('#affiliateCodeValueBottom');
+        if (affiliateCodeValueBottom) affiliateCodeValueBottom.textContent = profile.affiliateCode || '-';
         if (affiliateLinkValue) affiliateLinkValue.value = referralLink;
         if (affiliateApplyCodeInput) affiliateApplyCodeInput.value = profile.referredBy || '';
         if (affiliateUsesCount) affiliateUsesCount.textContent = String(profile.affiliateUses || 0);
