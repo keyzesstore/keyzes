@@ -607,8 +607,8 @@
     });
     saveJSON(STORAGE_CART, cart);
 
-    // Seed demo products on first visit or if old data lacks variants
-    if (products.length === 0 || (products.length > 0 && !products[0].variants)) {
+    // Seed demo products only on very first visit (localStorage key doesn't exist yet)
+    if (localStorage.getItem(STORAGE_PRODUCTS) === null || (products.length > 0 && !products[0].variants)) {
         products = getSeedProducts();
         saveProducts();
     }
