@@ -557,6 +557,44 @@
         return window.supabase.createClient(APP_CONFIG.supabaseUrl, APP_CONFIG.supabaseAnonKey);
     })();
 
+    // ---- Product Catalog Sync (Supabase) ----
+    async function syncProductsToSupabase() {
+        if (!supabaseClient) return;
+        try {
+            // Upsert the full catalog as a single row
+            await supabaseClient.from('product_catalog').upsert({
+                id: 'main',
+                data: products,
+                updated_at: new Date().toISOString(),
+            });
+        } catch (e) {
+            console.warn('[Product Sync] Failed to push products:', e);
+        }
+    }
+
+    async function loadProductsFromSupabase() {
+        if (!supabaseClient) return false;
+        try {
+            const { data, error } = await supabaseClient
+                .from('product_catalog')
+                .select('data')
+                .eq('id', 'main')
+                .single();
+            if (error || !data || !Array.isArray(data.data)) return false;
+            products = data.data;
+            saveJSON(STORAGE_PRODUCTS, products);
+            return true;
+        } catch (e) {
+            console.warn('[Product Sync] Failed to load products:', e);
+            return false;
+        }
+    }
+
+    function saveProducts() {
+        saveJSON(STORAGE_PRODUCTS, products);
+        syncProductsToSupabase();
+    }
+
     let pendingCartAction = null;
 
     // Migrate old cart items that lack cartKey
@@ -572,7 +610,7 @@
     // Seed demo products on first visit or if old data lacks variants
     if (products.length === 0 || (products.length > 0 && !products[0].variants)) {
         products = getSeedProducts();
-        saveJSON(STORAGE_PRODUCTS, products);
+        saveProducts();
     }
 
     captureReferralFromUrl();
@@ -3042,7 +3080,7 @@
             const idx = products.findIndex(p => p.id === editId);
             if (idx !== -1) {
                 products[idx] = { ...products[idx], ...data };
-                saveJSON(STORAGE_PRODUCTS, products);
+                saveProducts();
                 showToast('Product updated successfully.', 'success');
             }
         } else {
@@ -3050,7 +3088,7 @@
             data.id = uid();
             data.createdAt = Date.now();
             products.push(data);
-            saveJSON(STORAGE_PRODUCTS, products);
+            saveProducts();
             showToast('Product added successfully.', 'success');
         }
 
@@ -3080,7 +3118,7 @@
             const id = e.target.dataset.delete;
             showConfirm('Delete Product?', 'This cannot be undone. The product will be removed permanently.', () => {
                 products = products.filter(p => p.id !== id);
-                saveJSON(STORAGE_PRODUCTS, products);
+                saveProducts();
                 showToast('Product deleted.', 'info');
                 // Re-render current section
                 const dashboardVisible = $('#adminDashboard').style.display !== 'none';
@@ -3135,7 +3173,7 @@
                 // Assign ids if missing
                 imported.forEach(p => { if (!p.id) p.id = uid(); });
                 products = imported;
-                saveJSON(STORAGE_PRODUCTS, products);
+                saveProducts();
                 showToast(`Imported ${imported.length} products.`, 'success');
                 renderAdminProducts();
                 renderDashboard();
@@ -3151,7 +3189,7 @@
     $('#clearAllData').addEventListener('click', () => {
         showConfirm('Clear All Products?', 'This will permanently delete every product. This cannot be undone.', () => {
             products = [];
-            saveJSON(STORAGE_PRODUCTS, products);
+            saveProducts();
             renderAdminProducts();
             renderDashboard();
             showToast('All products cleared.', 'info');
@@ -3246,6 +3284,15 @@
     // ===========================
     //  INIT
     // ===========================
+
+    // Try to load shared product catalog from Supabase, then render
+    loadProductsFromSupabase().then(function(loaded) {
+        if (loaded) {
+            renderProducts();
+            // Also update admin view if visible
+            if (typeof renderAdminProducts === 'function') try { renderAdminProducts(); } catch(e) {}
+        }
+    });
 
     renderProducts();
     initializeCustomerAuth();
