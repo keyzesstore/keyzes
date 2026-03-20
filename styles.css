@@ -187,26 +187,44 @@ a {
     background: linear-gradient(135deg, #f07f2f 0%, #ffd469 100%);
 }
 
-.customer-session-chip {
-    display: flex;
-    flex-direction: column;
-    padding: 7px 12px;
+.customer-session-account-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(20, 25, 41, 0.95);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    background: rgba(20, 25, 41, 0.95);
-    line-height: 1.15;
-}
-
-.customer-session-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-}
-
-.customer-session-chip strong {
-    font-size: 13px;
+    padding: 6px 10px;
+    cursor: pointer;
     color: var(--text-primary);
+}
+
+.customer-session-account-btn:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-card-hover);
+}
+
+.customer-session-avatar,
+.mobile-session-avatar,
+.account-hero-avatar,
+.account-avatar-preview {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(255,255,255,0.14);
+    background: #0f1324;
+}
+
+.account-hero-avatar,
+.account-avatar-preview {
+    width: 72px;
+    height: 72px;
+}
+
+.customer-session-name {
+    font-size: 13px;
+    font-weight: 700;
 }
 
 .nav-link {
@@ -1268,6 +1286,17 @@ a {
     font-size: 14px;
 }
 
+.mobile-session-account-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    background: rgba(20, 25, 41, 0.95);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    color: var(--text-primary);
+}
+
 /* ===========================
    Responsive
    =========================== */
@@ -2244,6 +2273,158 @@ a {
     display: grid;
     gap: 18px;
     max-width: 760px;
+}
+
+.settings-card-hero {
+    background: linear-gradient(160deg, rgba(255,255,255,0.04), rgba(14, 20, 36, 0.95));
+}
+
+.account-hero-head {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.account-hero-name {
+    margin: 0 0 4px;
+}
+
+.account-balance-grid,
+.affiliate-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.account-balance-item {
+    border: 1px solid var(--border);
+    background: rgba(16, 22, 38, 0.62);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.account-balance-item span {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.account-balance-item strong {
+    color: var(--text-primary);
+    font-size: 18px;
+}
+
+.account-avatar-editor {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.account-orders-list {
+    display: grid;
+    gap: 10px;
+}
+
+.account-order-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    background: rgba(16, 22, 38, 0.62);
+}
+
+.account-order-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.account-order-total {
+    color: var(--orange-light);
+    font-weight: 700;
+}
+
+.account-order-items {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.store-credit-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.affiliate-create-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.affiliate-create-row input {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    padding: 10px 12px;
+}
+
+.affiliate-code-box {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    background: rgba(16, 22, 38, 0.62);
+}
+
+.affiliate-code-box strong {
+    display: block;
+    color: var(--orange-light);
+    font-size: 16px;
+}
+
+.affiliate-chart {
+    margin-top: 12px;
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 8px;
+    align-items: end;
+    min-height: 120px;
+    padding-bottom: 20px;
+}
+
+.affiliate-chart-bar {
+    background: linear-gradient(180deg, #ffca55, #f37920);
+    border-radius: 8px 8px 4px 4px;
+    min-height: 8px;
+    position: relative;
+}
+
+.affiliate-chart-day {
+    position: absolute;
+    bottom: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.affiliate-withdraw-box {
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
 }
 
 .account-profile-list {
@@ -3343,6 +3524,15 @@ a {
     .account-profile-list > div {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .account-balance-grid,
+    .affiliate-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .affiliate-create-row {
+        flex-direction: column;
     }
 
     .toast {

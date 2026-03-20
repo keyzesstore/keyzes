@@ -31,10 +31,10 @@
                         <button type="button" class="nav-auth-btn nav-auth-btn-primary" id="openAuthBtn">Login / Sign up</button>
                     </div>
                     <div class="customer-session-panel" id="customerSessionPanel" style="display:none;">
-                        <div class="customer-session-chip">
-                            <span class="customer-session-label">Signed in as</span>
-                            <strong id="customerSessionName">Guest</strong>
-                        </div>
+                        <button type="button" class="customer-session-account-btn" id="customerAccountBtn">
+                            <img src="photos/keyzes-logo-no-backround.png" alt="Profile" class="customer-session-avatar" id="customerSessionAvatar">
+                            <span class="customer-session-name" id="customerSessionName">Guest</span>
+                        </button>
                         <button type="button" class="nav-auth-btn" id="customerLogoutBtn">Log Out</button>
                     </div>
                 </div>
@@ -73,7 +73,10 @@
                 <button type="button" class="mobile-auth-btn mobile-auth-btn-primary" id="mobileAuthBtn">Login / Sign up</button>
             </div>
             <div class="mobile-session-panel" id="mobileSessionPanel" style="display:none;">
-                <span class="mobile-session-copy">Signed in as <strong id="mobileSessionName">Guest</strong></span>
+                <button type="button" class="mobile-session-account-btn" id="mobileCustomerAccountBtn">
+                    <img src="photos/keyzes-logo-no-backround.png" alt="Profile" class="mobile-session-avatar" id="mobileSessionAvatar">
+                    <span class="mobile-session-copy"><strong id="mobileSessionName">Guest</strong></span>
+                </button>
                 <button type="button" class="mobile-auth-btn" id="mobileLogoutBtn">Log Out</button>
             </div>
             <a href="#" class="mobile-nav-link" data-nav="admin" id="mobileAdminTrigger" style="display:none;">Admin Panel</a>
@@ -234,6 +237,10 @@
                         <span>Subtotal</span>
                         <span id="cartSubtotal">$0.00</span>
                     </div>
+                    <div class="cart-summary-row" id="cartDiscountRow" style="display:none;">
+                        <span>Affiliate Discount (5%)</span>
+                        <span id="cartDiscount">-$0.00</span>
+                    </div>
                     <div class="cart-summary-row cart-total">
                         <span>Total</span>
                         <span id="cartTotal">$0.00</span>
@@ -253,9 +260,41 @@
                 <button class="cart-back-btn" id="settingsBackBtn">&larr; Back to Store</button>
             </div>
             <div class="account-grid">
+                <section class="settings-card settings-card-hero">
+                    <div class="account-hero-head">
+                        <img src="photos/keyzes-logo-no-backround.png" alt="Profile" class="account-hero-avatar" id="accountHeroAvatar">
+                        <div>
+                            <h3 class="account-hero-name" id="accountHeroName">Your account</h3>
+                            <p class="settings-hint" id="accountHeroEmail">Welcome to Keyzes account center.</p>
+                        </div>
+                    </div>
+                    <div class="account-balance-grid">
+                        <div class="account-balance-item">
+                            <span>Store Credit</span>
+                            <strong id="storeCreditBalance">0.00 EUR</strong>
+                        </div>
+                        <div class="account-balance-item">
+                            <span>Affiliate Balance</span>
+                            <strong id="affiliateBalance">0.00 EUR</strong>
+                        </div>
+                        <div class="account-balance-item">
+                            <span>Total Account Value</span>
+                            <strong id="accountTotalBalance">0.00 EUR</strong>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="settings-card">
                     <h3>Profile</h3>
                     <p class="settings-hint">Update your name or email address. Email changes require confirmation via the new address.</p>
+                    <div class="account-avatar-editor">
+                        <img src="photos/keyzes-logo-no-backround.png" alt="Profile" class="account-avatar-preview" id="customerProfileAvatarPreview">
+                        <div>
+                            <label for="customerProfileAvatarFile" class="admin-btn admin-btn-outline">Upload Photo</label>
+                            <input type="file" id="customerProfileAvatarFile" accept="image/*" style="display:none;">
+                            <p class="settings-hint" id="customerProfileAvatarHelp" style="margin:8px 0 0;">Use a square image for best results.</p>
+                        </div>
+                    </div>
                     <form id="customerProfileForm" class="customer-auth-form account-inline-form">
                         <div class="admin-form-group">
                             <label for="customerProfileName">Name</label>
@@ -310,6 +349,61 @@
                     <p class="settings-hint">This permanently removes your account. This action cannot be undone.</p>
                     <button type="button" class="admin-btn admin-btn-danger" id="customerDeleteAccountBtn">Delete My Account</button>
                     <p class="settings-hint" id="customerDeleteHelp" style="margin-top:12px;margin-bottom:0;">If deletion is not configured yet, contact support to complete account removal.</p>
+                </section>
+
+                <section class="settings-card">
+                    <h3>Purchase Orders</h3>
+                    <p class="settings-hint">Track everything you bought from Keyzes.</p>
+                    <div class="account-orders-list" id="customerOrdersList">
+                        <p class="settings-hint" style="margin:0;">No orders yet.</p>
+                    </div>
+                </section>
+
+                <section class="settings-card">
+                    <h3>Store Credit</h3>
+                    <p class="settings-hint">Top-up providers are coming soon. Affiliate transfers can be moved here instantly.</p>
+                    <div class="store-credit-actions">
+                        <button type="button" class="admin-btn admin-btn-outline" id="storeCreditTopupBtn" disabled>Top Up (coming soon)</button>
+                    </div>
+                </section>
+
+                <section class="settings-card">
+                    <h3>Affiliate Program</h3>
+                    <p class="settings-hint">Create your code, earn 5% commission, and your buyers get 5% discount on all products.</p>
+                    <div class="affiliate-create-row">
+                        <input type="text" id="affiliateCodeInput" placeholder="Create code (A-Z, 0-9)">
+                        <button type="button" class="admin-btn admin-btn-primary" id="affiliateCreateBtn">Create Code</button>
+                    </div>
+                    <div class="affiliate-code-box" id="affiliateCodeBox" style="display:none;">
+                        <div>
+                            <span class="settings-hint" style="margin:0;">Your code</span>
+                            <strong id="affiliateCodeValue">-</strong>
+                        </div>
+                        <button type="button" class="admin-btn admin-btn-outline" id="affiliateCopyBtn">Copy Link</button>
+                    </div>
+                    <div class="affiliate-stats-grid">
+                        <div class="account-balance-item">
+                            <span>Code Uses</span>
+                            <strong id="affiliateUsesCount">0</strong>
+                        </div>
+                        <div class="account-balance-item">
+                            <span>Unique Buyers</span>
+                            <strong id="affiliateUniqueCount">0</strong>
+                        </div>
+                        <div class="account-balance-item">
+                            <span>Total Earned</span>
+                            <strong id="affiliateEarnedTotal">0.00 EUR</strong>
+                        </div>
+                    </div>
+                    <div class="affiliate-chart" id="affiliateChartBars"></div>
+                    <div class="affiliate-withdraw-box">
+                        <p class="settings-hint" style="margin:0;">Cashout is available only from affiliate balance and only from $1.00. Withdraw via support email or transfer to store credit.</p>
+                        <div class="store-credit-actions">
+                            <button type="button" class="admin-btn admin-btn-outline" id="affiliateWithdrawEmailBtn">Withdraw via Email</button>
+                            <button type="button" class="admin-btn admin-btn-primary" id="affiliateTransferCreditBtn">Transfer to Store Credit</button>
+                        </div>
+                        <div class="admin-login-error" id="affiliateActionMsg"></div>
+                    </div>
                 </section>
             </div>
         </div>

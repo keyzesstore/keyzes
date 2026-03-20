@@ -14,6 +14,10 @@
     const STORAGE_PRODUCTS = 'keyzes_products';
     const STORAGE_SETTINGS = 'keyzes_settings';
     const STORAGE_CART = 'keyzes_cart';
+    const STORAGE_CUSTOMER_PROFILES = 'keyzes_customer_profiles_v1';
+    const STORAGE_CUSTOMER_ORDERS = 'keyzes_customer_orders_v1';
+    const STORAGE_AFFILIATE_CODES = 'keyzes_affiliate_codes_v1';
+    const STORAGE_PENDING_REF = 'keyzes_pending_ref_v1';
     const ADMIN_EMAIL = 'keyzes.store@gmail.com';
 
     // ---- Default Admin Credentials ----
@@ -32,6 +36,169 @@
 
     function normalizeEmail(value) {
         return String(value || '').trim().toLowerCase();
+    }
+
+    function formatMoney(value) {
+        return Number(value || 0).toFixed(2);
+    }
+
+    function saveCustomerProgramState() {
+        saveJSON(STORAGE_CUSTOMER_PROFILES, customerProfiles);
+        saveJSON(STORAGE_CUSTOMER_ORDERS, customerOrders);
+        saveJSON(STORAGE_AFFILIATE_CODES, affiliateCodes);
+    }
+
+    function getCustomerProfile(email, createIfMissing = true) {
+        const key = normalizeEmail(email);
+        if (!key) return null;
+        if (!customerProfiles[key] && createIfMissing) {
+            customerProfiles[key] = {
+                avatar: '',
+                storeCredit: 0,
+                affiliateBalance: 0,
+                affiliateCode: '',
+                referredBy: '',
+                affiliateUses: 0,
+                affiliateEarningsTotal: 0,
+                affiliateHistory: [],
+                affiliateUniqueUsers: [],
+            };
+            saveCustomerProgramState();
+        }
+        return customerProfiles[key] || null;
+    }
+
+    function getCustomerOrders(email) {
+        const key = normalizeEmail(email);
+        if (!key) return [];
+        return Array.isArray(customerOrders[key]) ? customerOrders[key] : [];
+    }
+
+    function setCustomerOrders(email, orders) {
+        const key = normalizeEmail(email);
+        if (!key) return;
+        customerOrders[key] = orders;
+        saveCustomerProgramState();
+    }
+
+    function cleanAffiliateCode(code) {
+        return String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18);
+    }
+
+    function generateAffiliateCode(seedName) {
+        const stem = String(seedName || 'KEYZES').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || 'KEYZES';
+        return stem + Math.floor(1000 + Math.random() * 9000);
+    }
+
+    function getRefOwnerEmail(code) {
+        return affiliateCodes[cleanAffiliateCode(code)] || '';
+    }
+
+    function getActiveReferralCodeForCustomer(customer) {
+        if (!customer) return '';
+        const profile = getCustomerProfile(customer.email, false);
+        if (!profile || !profile.referredBy) return '';
+        const ownerEmail = getRefOwnerEmail(profile.referredBy);
+        if (!ownerEmail || ownerEmail === normalizeEmail(customer.email)) return '';
+        return profile.referredBy;
+    }
+
+    function getCheckoutPricing(customer, cartItems) {
+        const subtotal = cartItems.reduce((sum, item) => sum + (getItemPrice(item) * item.qty), 0);
+        const activeRefCode = getActiveReferralCodeForCustomer(customer);
+        const discountAmount = activeRefCode ? subtotal * 0.05 : 0;
+        const total = Math.max(0, subtotal - discountAmount);
+        return {
+            subtotal,
+            discountAmount,
+            total,
+            activeRefCode,
+        };
+    }
+
+    function recordOrderForCustomer(customer, cartItems, pricing, remoteOrderId) {
+        if (!customer || !customer.email) return;
+        const orderId = remoteOrderId || ('L-' + uid());
+        const order = {
+            id: orderId,
+            createdAt: Date.now(),
+            total: pricing.total,
+            subtotal: pricing.subtotal,
+            discount: pricing.discountAmount,
+            refCode: pricing.activeRefCode || '',
+            items: cartItems.map(item => {
+                const p = products.find(pr => pr.id === item.id);
+                return {
+                    title: p ? p.title : item.id,
+                    qty: item.qty,
+                    variant: getItemVariantName(item),
+                    unitPrice: getItemPrice(item),
+                };
+            }),
+        };
+        const existing = getCustomerOrders(customer.email);
+        existing.unshift(order);
+        setCustomerOrders(customer.email, existing);
+    }
+
+    function applyAffiliateCommission(customer, pricing, remoteOrderId) {
+        if (!customer || !pricing.activeRefCode || !pricing.subtotal) return;
+        const ownerEmail = getRefOwnerEmail(pricing.activeRefCode);
+        const buyerEmail = normalizeEmail(customer.email);
+        if (!ownerEmail || ownerEmail === buyerEmail) return;
+
+        const commission = pricing.subtotal * 0.05;
+        const ownerProfile = getCustomerProfile(ownerEmail, true);
+        ownerProfile.affiliateBalance = Number(ownerProfile.affiliateBalance || 0) + commission;
+        ownerProfile.affiliateEarningsTotal = Number(ownerProfile.affiliateEarningsTotal || 0) + commission;
+        ownerProfile.affiliateUses = Number(ownerProfile.affiliateUses || 0) + 1;
+        if (!Array.isArray(ownerProfile.affiliateUniqueUsers)) ownerProfile.affiliateUniqueUsers = [];
+        if (!ownerProfile.affiliateUniqueUsers.includes(buyerEmail)) {
+            ownerProfile.affiliateUniqueUsers.push(buyerEmail);
+        }
+        if (!Array.isArray(ownerProfile.affiliateHistory)) ownerProfile.affiliateHistory = [];
+        ownerProfile.affiliateHistory.unshift({
+            createdAt: Date.now(),
+            orderId: remoteOrderId || ('L-' + uid()),
+            buyerEmail,
+            amount: pricing.subtotal,
+            commission,
+        });
+        saveCustomerProgramState();
+    }
+
+    function applyPendingReferralToCustomer(customer) {
+        if (!customer || !customer.email) return;
+        const pendingCode = cleanAffiliateCode(localStorage.getItem(STORAGE_PENDING_REF));
+        if (!pendingCode) return;
+
+        const ownerEmail = getRefOwnerEmail(pendingCode);
+        if (!ownerEmail || ownerEmail === normalizeEmail(customer.email)) {
+            localStorage.removeItem(STORAGE_PENDING_REF);
+            return;
+        }
+
+        const profile = getCustomerProfile(customer.email, true);
+        if (!profile.referredBy) {
+            profile.referredBy = pendingCode;
+            saveCustomerProgramState();
+            showToast('Affiliate discount activated (5%) for your account.', 'success');
+        }
+        localStorage.removeItem(STORAGE_PENDING_REF);
+    }
+
+    function captureReferralFromUrl() {
+        const params = new URLSearchParams(window.location.search || '');
+        const refCode = cleanAffiliateCode(params.get('ref'));
+        if (!refCode) return;
+        if (!getRefOwnerEmail(refCode)) return;
+
+        localStorage.setItem(STORAGE_PENDING_REF, refCode);
+        params.delete('ref');
+        const cleanSearch = params.toString();
+        const cleanUrl = window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '') + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+        showToast('Affiliate code applied. You will get 5% discount at checkout.', 'success');
     }
 
     function sanitizeCustomer(customer) {
@@ -263,12 +430,13 @@
         }
     }
 
-    async function createRemoteOrder(customerEmail, cartItems) {
+    async function createRemoteOrder(customerEmail, cartItems, pricing) {
         if (!isConfigured(APP_CONFIG.supabaseUrl) || !isConfigured(APP_CONFIG.supabaseAnonKey)) {
             return { ok: false, reason: 'Supabase is not configured yet.' };
         }
 
-        const subtotal = cartItems.reduce((sum, item) => sum + (getItemPrice(item) * item.qty), 0);
+        const computedSubtotal = cartItems.reduce((sum, item) => sum + (getItemPrice(item) * item.qty), 0);
+        const subtotal = pricing && typeof pricing.total === 'number' ? pricing.total : computedSubtotal;
         const orderPayload = {
             customer_email: customerEmail,
             status: 'pending',
@@ -356,6 +524,9 @@
         password: DEFAULT_ADMIN.password,
     });
     let cart = loadJSON(STORAGE_CART, []);
+    let customerProfiles = loadJSON(STORAGE_CUSTOMER_PROFILES, {});
+    let customerOrders = loadJSON(STORAGE_CUSTOMER_ORDERS, {});
+    let affiliateCodes = loadJSON(STORAGE_AFFILIATE_CODES, {});
     let currentCustomer = null;
     let pendingVerificationEmail = '';
 
@@ -382,6 +553,8 @@
         products = getSeedProducts();
         saveJSON(STORAGE_PRODUCTS, products);
     }
+
+    captureReferralFromUrl();
 
     // ===========================
     //  STOREFRONT
@@ -903,12 +1076,15 @@
             </div>`;
         }).join('');
 
-        const subtotal = cart.reduce((sum, item) => {
-            return sum + (getItemPrice(item) * item.qty);
-        }, 0);
+        const pricing = getCheckoutPricing(currentCustomer, cart);
 
-        $('#cartSubtotal').textContent = '$' + subtotal.toFixed(2);
-        $('#cartTotal').textContent = '$' + subtotal.toFixed(2);
+        $('#cartSubtotal').textContent = '$' + formatMoney(pricing.subtotal);
+        if (cartDiscountRow && cartDiscount) {
+            const hasDiscount = pricing.discountAmount > 0;
+            cartDiscountRow.style.display = hasDiscount ? '' : 'none';
+            cartDiscount.textContent = '-$' + formatMoney(pricing.discountAmount);
+        }
+        $('#cartTotal').textContent = '$' + formatMoney(pricing.total);
         updateCheckoutState();
 
         // Bind qty and remove buttons
@@ -946,7 +1122,9 @@
         checkoutBtn.disabled = true;
         checkoutBtn.textContent = 'Processing...';
 
-        const result = await createRemoteOrder(currentCustomer.email, cart);
+        const pricing = getCheckoutPricing(currentCustomer, cart);
+        const cartSnapshot = cart.map(item => ({ ...item }));
+        const result = await createRemoteOrder(currentCustomer.email, cart, pricing);
         checkoutBtn.textContent = originalLabel;
         updateCheckoutState();
 
@@ -954,6 +1132,9 @@
             showToast('Checkout setup is incomplete: ' + result.reason, 'error');
             return;
         }
+
+        recordOrderForCustomer(currentCustomer, cartSnapshot, pricing, result.orderId);
+        applyAffiliateCommission(currentCustomer, pricing, result.orderId);
 
         cart = [];
         saveJSON(STORAGE_CART, cart);
@@ -1030,9 +1211,15 @@
     const customerResetError = $('#customerResetError');
     const customerGuestActions = $('#customerGuestActions');
     const customerSessionPanel = $('#customerSessionPanel');
+    const customerAccountBtn = $('#customerAccountBtn');
+    const customerSessionAvatar = $('#customerSessionAvatar');
     const mobileGuestActions = $('#mobileGuestActions');
     const mobileSessionPanel = $('#mobileSessionPanel');
+    const mobileCustomerAccountBtn = $('#mobileCustomerAccountBtn');
+    const mobileSessionAvatar = $('#mobileSessionAvatar');
     const cartAuthNotice = $('#cartAuthNotice');
+    const cartDiscountRow = $('#cartDiscountRow');
+    const cartDiscount = $('#cartDiscount');
     const checkoutBtn = $('#checkoutBtn');
     const checkoutNote = document.querySelector('.checkout-note');
     const customerVerifyBox = $('#customerVerifyBox');
@@ -1053,6 +1240,29 @@
     const customerForgotEmail = $('#customerForgotEmail');
     const customerResetPassword = $('#customerResetPassword');
     const customerResetPasswordConfirm = $('#customerResetPasswordConfirm');
+    const accountHeroAvatar = $('#accountHeroAvatar');
+    const accountHeroName = $('#accountHeroName');
+    const accountHeroEmail = $('#accountHeroEmail');
+    const customerProfileAvatarPreview = $('#customerProfileAvatarPreview');
+    const customerProfileAvatarFile = $('#customerProfileAvatarFile');
+    const customerProfileAvatarHelp = $('#customerProfileAvatarHelp');
+    const customerOrdersList = $('#customerOrdersList');
+    const storeCreditBalance = $('#storeCreditBalance');
+    const affiliateBalance = $('#affiliateBalance');
+    const accountTotalBalance = $('#accountTotalBalance');
+    const storeCreditTopupBtn = $('#storeCreditTopupBtn');
+    const affiliateCodeInput = $('#affiliateCodeInput');
+    const affiliateCreateBtn = $('#affiliateCreateBtn');
+    const affiliateCodeBox = $('#affiliateCodeBox');
+    const affiliateCodeValue = $('#affiliateCodeValue');
+    const affiliateCopyBtn = $('#affiliateCopyBtn');
+    const affiliateUsesCount = $('#affiliateUsesCount');
+    const affiliateUniqueCount = $('#affiliateUniqueCount');
+    const affiliateEarnedTotal = $('#affiliateEarnedTotal');
+    const affiliateChartBars = $('#affiliateChartBars');
+    const affiliateWithdrawEmailBtn = $('#affiliateWithdrawEmailBtn');
+    const affiliateTransferCreditBtn = $('#affiliateTransferCreditBtn');
+    const affiliateActionMsg = $('#affiliateActionMsg');
 
     function isCurrentUserAdmin() {
         return !!currentCustomer && normalizeEmail(currentCustomer.email) === ADMIN_EMAIL;
@@ -1169,6 +1379,9 @@
 
     function setCurrentCustomer(customer) {
         currentCustomer = sanitizeCustomer(customer);
+        if (currentCustomer) {
+            applyPendingReferralToCustomer(currentCustomer);
+        }
         renderCustomerState();
     }
 
@@ -1203,34 +1416,142 @@
 
     function updateCheckoutState() {
         const isSignedIn = !!currentCustomer;
+        const pricing = getCheckoutPricing(currentCustomer, cart);
         if (cartAuthNotice) cartAuthNotice.style.display = !isSignedIn && cart.length ? '' : 'none';
         if (checkoutBtn) {
             checkoutBtn.disabled = !isSignedIn || !cart.length;
             checkoutBtn.textContent = isSignedIn ? 'Proceed to Checkout' : 'Log In to Checkout';
         }
-        if (checkoutNote) {
-            checkoutNote.textContent = isSignedIn
-                ? 'Order confirmation will be sent to ' + currentCustomer.email + '.'
-                : 'Sign in to place your order and save your cart.';
+        if (cartDiscountRow && cartDiscount) {
+            const hasDiscount = pricing.discountAmount > 0;
+            cartDiscountRow.style.display = hasDiscount ? '' : 'none';
+            cartDiscount.textContent = '-$' + formatMoney(pricing.discountAmount);
         }
+        if (checkoutNote) {
+            if (!isSignedIn) {
+                checkoutNote.textContent = 'Sign in to place your order and save your cart.';
+            } else if (pricing.activeRefCode) {
+                checkoutNote.textContent = '5% affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '.';
+            } else {
+                checkoutNote.textContent = 'Order confirmation will be sent to ' + currentCustomer.email + '.';
+            }
+        }
+    }
+
+    function buildDefaultAvatar(name) {
+        const initial = (name || 'K').trim().charAt(0).toUpperCase() || 'K';
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><rect width="100%" height="100%" fill="#1d2642"/><text x="50%" y="55%" text-anchor="middle" fill="#f6f7ff" font-size="74" font-family="Arial" font-weight="700">${initial}</text></svg>`;
+        return 'data:image/svg+xml,' + encodeURIComponent(svg);
+    }
+
+    function resolveCustomerAvatar(customer) {
+        if (!customer) return 'photos/keyzes-logo-no-backround.png';
+        const profile = getCustomerProfile(customer.email, true);
+        return profile.avatar || buildDefaultAvatar(customer.name || 'K');
+    }
+
+    function renderAffiliateChart(profile) {
+        if (!affiliateChartBars) return;
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() - i);
+            days.push(d);
+        }
+        const values = days.map(d => {
+            const start = d.getTime();
+            const end = start + 86400000;
+            return (profile.affiliateHistory || []).reduce((sum, row) => {
+                return row.createdAt >= start && row.createdAt < end ? sum + Number(row.commission || 0) : sum;
+            }, 0);
+        });
+        const maxValue = Math.max(1, ...values);
+        affiliateChartBars.innerHTML = values.map((value, idx) => {
+            const height = Math.max(8, Math.round((value / maxValue) * 96));
+            const label = days[idx].toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
+            return `<div class="affiliate-chart-bar" style="height:${height}px" title="EUR ${formatMoney(value)}"><span class="affiliate-chart-day">${label}</span></div>`;
+        }).join('');
+    }
+
+    function renderOrdersForCurrentCustomer() {
+        if (!customerOrdersList || !currentCustomer) return;
+        const orders = getCustomerOrders(currentCustomer.email);
+        if (!orders.length) {
+            customerOrdersList.innerHTML = '<p class="settings-hint" style="margin:0;">No orders yet.</p>';
+            return;
+        }
+        customerOrdersList.innerHTML = orders.map(order => {
+            const when = new Date(order.createdAt || Date.now()).toLocaleString();
+            const items = (order.items || []).map(item => {
+                const variantPart = item.variant ? ' - ' + escapeHtml(item.variant) : '';
+                return `${escapeHtml(item.title)} x${item.qty}${variantPart}`;
+            }).join('<br>');
+            return `
+            <div class="account-order-item">
+                <div class="account-order-top">
+                    <span>Order ${escapeHtml(String(order.id || 'N/A'))}</span>
+                    <span>${escapeHtml(when)}</span>
+                </div>
+                <div class="account-order-items">${items}</div>
+                <div class="account-order-top" style="margin-top:8px;margin-bottom:0;">
+                    <span>${order.refCode ? 'Affiliate: ' + escapeHtml(order.refCode) : 'No affiliate discount'}</span>
+                    <span class="account-order-total">EUR ${formatMoney(order.total || 0)}</span>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderAccountProgramPanels() {
+        if (!currentCustomer) return;
+        const profile = getCustomerProfile(currentCustomer.email, true);
+
+        if (accountHeroName) accountHeroName.textContent = currentCustomer.name || 'Account';
+        if (accountHeroEmail) accountHeroEmail.textContent = currentCustomer.email || '';
+
+        const avatarSrc = resolveCustomerAvatar(currentCustomer);
+        if (customerSessionAvatar) customerSessionAvatar.src = avatarSrc;
+        if (mobileSessionAvatar) mobileSessionAvatar.src = avatarSrc;
+        if (accountHeroAvatar) accountHeroAvatar.src = avatarSrc;
+        if (customerProfileAvatarPreview) customerProfileAvatarPreview.src = avatarSrc;
+
+        if (storeCreditBalance) storeCreditBalance.textContent = formatMoney(profile.storeCredit) + ' EUR';
+        if (affiliateBalance) affiliateBalance.textContent = formatMoney(profile.affiliateBalance) + ' EUR';
+        if (accountTotalBalance) {
+            const total = Number(profile.storeCredit || 0) + Number(profile.affiliateBalance || 0);
+            accountTotalBalance.textContent = formatMoney(total) + ' EUR';
+        }
+
+        if (affiliateCodeBox) affiliateCodeBox.style.display = profile.affiliateCode ? '' : 'none';
+        if (affiliateCodeValue) affiliateCodeValue.textContent = profile.affiliateCode || '-';
+        if (affiliateUsesCount) affiliateUsesCount.textContent = String(profile.affiliateUses || 0);
+        if (affiliateUniqueCount) affiliateUniqueCount.textContent = String((profile.affiliateUniqueUsers || []).length);
+        if (affiliateEarnedTotal) affiliateEarnedTotal.textContent = formatMoney(profile.affiliateEarningsTotal || 0) + ' EUR';
+        renderAffiliateChart(profile);
+        renderOrdersForCurrentCustomer();
     }
 
     function renderCustomerState() {
         const isSignedIn = !!currentCustomer;
         const isAdminCustomer = isCurrentUserAdmin();
         const displayName = isSignedIn ? customerFirstName(currentCustomer) : 'Guest';
+        const avatarSrc = isSignedIn ? resolveCustomerAvatar(currentCustomer) : 'photos/keyzes-logo-no-backround.png';
 
         customerGuestActions.style.display = isSignedIn ? 'none' : 'flex';
         customerSessionPanel.style.display = isSignedIn ? 'flex' : 'none';
         mobileGuestActions.style.display = isSignedIn ? 'none' : 'flex';
         mobileSessionPanel.style.display = isSignedIn ? 'flex' : 'none';
-        if (accountTrigger) accountTrigger.style.display = isSignedIn && !isAdminCustomer ? '' : 'none';
-        if (mobileAccountTrigger) mobileAccountTrigger.style.display = isSignedIn && !isAdminCustomer ? '' : 'none';
+        if (accountTrigger) accountTrigger.style.display = 'none';
+        if (mobileAccountTrigger) mobileAccountTrigger.style.display = 'none';
         if ($('#adminTrigger')) $('#adminTrigger').style.display = isAdminCustomer ? '' : 'none';
         if (mobileAdminTrigger) mobileAdminTrigger.style.display = isAdminCustomer ? '' : 'none';
 
         $('#customerSessionName').textContent = displayName;
         $('#mobileSessionName').textContent = displayName;
+        if (customerSessionAvatar) customerSessionAvatar.src = avatarSrc;
+        if (mobileSessionAvatar) mobileSessionAvatar.src = avatarSrc;
+        if (accountHeroAvatar) accountHeroAvatar.src = avatarSrc;
+        if (customerProfileAvatarPreview) customerProfileAvatarPreview.src = avatarSrc;
 
         if (customerSettingsView && customerSettingsView.style.display !== 'none' && (!isSignedIn || isAdminCustomer)) {
             showStorefront();
@@ -1239,6 +1560,9 @@
             showStorefront();
         }
         updateCheckoutState();
+        if (isSignedIn) {
+            renderAccountProgramPanels();
+        }
     }
 
     function showForgotPasswordState() {
@@ -1667,6 +1991,8 @@
         customerProfileForm.querySelectorAll('button[type="submit"]').forEach(b => { b.textContent = 'Save Changes'; b.disabled = false; });
         customerPasswordForm.reset();
         customerPasswordError.textContent = '';
+        if (affiliateActionMsg) affiliateActionMsg.textContent = '';
+        renderAccountProgramPanels();
         customerDeleteHelp.textContent = isDeleteAccountConfigured()
             ? 'Delete request will be processed immediately.'
             : 'Account deletion endpoint is not configured yet. Contact support to complete account removal.';
@@ -1723,6 +2049,118 @@
     const adminMobileBack = $('#adminMobileBack');
     if (adminMobileBack) adminMobileBack.addEventListener('click', () => showStorefront());
     if (settingsBackBtn) settingsBackBtn.addEventListener('click', () => showStorefront());
+    if (customerAccountBtn) customerAccountBtn.addEventListener('click', () => showCustomerSettings());
+    if (mobileCustomerAccountBtn) mobileCustomerAccountBtn.addEventListener('click', () => {
+        showCustomerSettings();
+        mobileMenuBtn.classList.remove('active');
+        mobileNav.classList.remove('open');
+    });
+
+    if (customerProfileAvatarFile) {
+        customerProfileAvatarFile.addEventListener('change', () => {
+            if (!currentCustomer) return;
+            const file = customerProfileAvatarFile.files && customerProfileAvatarFile.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select an image file.', 'error');
+                return;
+            }
+            if (file.size > 4 * 1024 * 1024) {
+                showToast('Image too large. Max 4MB.', 'error');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => {
+                const profile = getCustomerProfile(currentCustomer.email, true);
+                profile.avatar = String(reader.result || '');
+                saveCustomerProgramState();
+                if (customerProfileAvatarHelp) customerProfileAvatarHelp.textContent = 'Profile photo updated.';
+                renderAccountProgramPanels();
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    if (affiliateCreateBtn) {
+        affiliateCreateBtn.addEventListener('click', () => {
+            if (!currentCustomer) {
+                showToast('Please log in first.', 'error');
+                return;
+            }
+            const profile = getCustomerProfile(currentCustomer.email, true);
+            let code = cleanAffiliateCode(affiliateCodeInput ? affiliateCodeInput.value : '');
+            if (!code) {
+                code = generateAffiliateCode(currentCustomer.name || 'KEYZES');
+            }
+            if (!profile.affiliateCode && affiliateCodes[code] && affiliateCodes[code] !== normalizeEmail(currentCustomer.email)) {
+                showToast('Affiliate code already taken. Try another.', 'error');
+                return;
+            }
+
+            if (profile.affiliateCode && profile.affiliateCode !== code) {
+                delete affiliateCodes[profile.affiliateCode];
+            }
+            profile.affiliateCode = code;
+            affiliateCodes[code] = normalizeEmail(currentCustomer.email);
+            saveCustomerProgramState();
+            if (affiliateCodeInput) affiliateCodeInput.value = code;
+            renderAccountProgramPanels();
+            showToast('Affiliate code saved: ' + code, 'success');
+        });
+    }
+
+    if (affiliateCopyBtn) {
+        affiliateCopyBtn.addEventListener('click', async () => {
+            if (!currentCustomer) return;
+            const profile = getCustomerProfile(currentCustomer.email, true);
+            if (!profile.affiliateCode) {
+                showToast('Create your affiliate code first.', 'error');
+                return;
+            }
+            const link = window.location.origin + window.location.pathname + '?ref=' + profile.affiliateCode;
+            try {
+                await navigator.clipboard.writeText(link);
+                showToast('Affiliate link copied.', 'success');
+            } catch {
+                showToast('Copy failed. Link: ' + link, 'info');
+            }
+        });
+    }
+
+    if (affiliateWithdrawEmailBtn) {
+        affiliateWithdrawEmailBtn.addEventListener('click', () => {
+            if (!currentCustomer) return;
+            const profile = getCustomerProfile(currentCustomer.email, true);
+            if (Number(profile.affiliateBalance || 0) < 1) {
+                if (affiliateActionMsg) affiliateActionMsg.textContent = 'Cashout becomes available when affiliate balance reaches at least 1.00 EUR.';
+                return;
+            }
+            if (affiliateActionMsg) affiliateActionMsg.textContent = 'For cashout contact keyzes.store@gmail.com with your account email and requested amount.';
+        });
+    }
+
+    if (affiliateTransferCreditBtn) {
+        affiliateTransferCreditBtn.addEventListener('click', () => {
+            if (!currentCustomer) return;
+            const profile = getCustomerProfile(currentCustomer.email, true);
+            const amount = Number(profile.affiliateBalance || 0);
+            if (amount <= 0) {
+                if (affiliateActionMsg) affiliateActionMsg.textContent = 'No affiliate balance available to transfer.';
+                return;
+            }
+            profile.storeCredit = Number(profile.storeCredit || 0) + amount;
+            profile.affiliateBalance = 0;
+            saveCustomerProgramState();
+            if (affiliateActionMsg) affiliateActionMsg.textContent = 'Transferred ' + formatMoney(amount) + ' EUR to store credit. This amount is no longer cashout eligible.';
+            renderAccountProgramPanels();
+        });
+    }
+
+    if (storeCreditTopupBtn) {
+        storeCreditTopupBtn.addEventListener('click', () => {
+            showToast('Top up provider is coming soon. Use affiliate transfer for now.', 'info');
+        });
+    }
 
     customerProfileForm.addEventListener('submit', async e => {
         e.preventDefault();
@@ -1768,7 +2206,15 @@
             return;
         }
 
-        if (updates.data) currentCustomer = mapSupabaseUserToCustomer(data.user);
+        if (data && data.user) {
+            setCurrentCustomer(mapSupabaseUserToCustomer(data.user));
+        } else {
+            setCurrentCustomer({
+                id: currentCustomer.id,
+                name: newName,
+                email: newEmail,
+            });
+        }
 
         if (updates.email) {
             showToast('Check your new email address to confirm the change.', 'info');
