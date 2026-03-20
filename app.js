@@ -213,7 +213,13 @@
         const cleanUrl = window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '') + window.location.hash;
         window.history.replaceState({}, document.title, cleanUrl);
         if (!currentCustomer) {
-            showToast('Referral link detected. Sign in to activate your discount.', 'info');
+            showToast('Referral link detected. Sign up to activate your discount.', 'info');
+            // Auto-open signup with referral code pre-filled
+            setTimeout(function() { openCustomerAuth('signup', 'Create an account to activate your referral discount.'); }, 300);
+        } else {
+            // Already logged in — go to account overview & auto-apply
+            applyPendingReferralToCustomer(currentCustomer);
+            setTimeout(function() { showCustomerSettings(); }, 300);
         }
     }
 
@@ -2337,13 +2343,11 @@
                 var msg = 'Cashout becomes available when affiliate balance reaches at least 1.00 EUR.';
                 if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
                 showToast(msg, 'error');
-                addNotification(msg, 'error');
                 return;
             }
             var msg = 'For cashout contact keyzes.store@gmail.com with your account email and requested amount.';
             if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
             showToast(msg, 'info');
-            addNotification(msg, 'info');
         });
     }
 
@@ -2356,7 +2360,6 @@
                 var msg = 'No affiliate balance available to transfer.';
                 if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
                 showToast(msg, 'error');
-                addNotification(msg, 'error');
                 return;
             }
             profile.storeCredit = Number(profile.storeCredit || 0) + amount;
@@ -2365,7 +2368,6 @@
             var msg = 'Transferred ' + formatMoney(amount) + ' EUR to store credit.';
             if (affiliateActionMsg) affiliateActionMsg.textContent = msg + ' This amount is no longer cashout eligible.';
             showToast(msg, 'success');
-            addNotification(msg, 'success');
             renderAccountProgramPanels();
         });
     }
@@ -3178,6 +3180,7 @@
         toast.textContent = message;
         toast.className = 'toast toast-' + type + ' show';
         setTimeout(() => toast.classList.remove('show'), 3000);
+        if (typeof addNotification === 'function') addNotification(message, type);
     }
 
     // ===========================
