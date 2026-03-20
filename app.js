@@ -19,6 +19,8 @@
     const STORAGE_AFFILIATE_CODES = 'keyzes_affiliate_codes_v1';
     const STORAGE_PENDING_REF = 'keyzes_pending_ref_v1';
     const ADMIN_EMAIL = 'keyzes.store@gmail.com';
+    const AFFILIATE_RATE = 0.03;
+    const AFFILIATE_RATE_LABEL = '3%';
 
     // ---- Default Admin Credentials ----
     const DEFAULT_ADMIN = { username: 'admin', password: 'admin123' };
@@ -106,7 +108,7 @@
     function getCheckoutPricing(customer, cartItems) {
         const subtotal = cartItems.reduce((sum, item) => sum + (getItemPrice(item) * item.qty), 0);
         const activeRefCode = getActiveReferralCodeForCustomer(customer);
-        const discountAmount = activeRefCode ? subtotal * 0.05 : 0;
+        const discountAmount = activeRefCode ? subtotal * AFFILIATE_RATE : 0;
         const total = Math.max(0, subtotal - discountAmount);
         return {
             subtotal,
@@ -147,7 +149,7 @@
         const buyerEmail = normalizeEmail(customer.email);
         if (!ownerEmail || ownerEmail === buyerEmail) return;
 
-        const commission = pricing.subtotal * 0.05;
+        const commission = pricing.subtotal * AFFILIATE_RATE;
         const ownerProfile = getCustomerProfile(ownerEmail, true);
         ownerProfile.affiliateBalance = Number(ownerProfile.affiliateBalance || 0) + commission;
         ownerProfile.affiliateEarningsTotal = Number(ownerProfile.affiliateEarningsTotal || 0) + commission;
@@ -182,7 +184,7 @@
         if (!profile.referredBy) {
             profile.referredBy = pendingCode;
             saveCustomerProgramState();
-            showToast('Affiliate discount activated (5%) for your account.', 'success');
+            showToast('Affiliate discount activated (' + AFFILIATE_RATE_LABEL + ') for your account.', 'success');
         }
         localStorage.removeItem(STORAGE_PENDING_REF);
     }
@@ -198,7 +200,7 @@
         const cleanSearch = params.toString();
         const cleanUrl = window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '') + window.location.hash;
         window.history.replaceState({}, document.title, cleanUrl);
-        showToast('Affiliate code applied. You will get 5% discount at checkout.', 'success');
+        showToast('Affiliate code applied. You will get ' + AFFILIATE_RATE_LABEL + ' discount at checkout.', 'success');
     }
 
     function sanitizeCustomer(customer) {
@@ -1257,6 +1259,8 @@
     const affiliateCreateBtn = $('#affiliateCreateBtn');
     const affiliateCodeBox = $('#affiliateCodeBox');
     const affiliateCodeValue = $('#affiliateCodeValue');
+    const affiliateLinkBox = $('#affiliateLinkBox');
+    const affiliateLinkValue = $('#affiliateLinkValue');
     const affiliateCopyBtn = $('#affiliateCopyBtn');
     const affiliateUsesCount = $('#affiliateUsesCount');
     const affiliateUniqueCount = $('#affiliateUniqueCount');
@@ -1433,7 +1437,7 @@
             if (!isSignedIn) {
                 checkoutNote.textContent = 'Sign in to place your order and save your cart.';
             } else if (pricing.activeRefCode) {
-                checkoutNote.textContent = '5% affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '.';
+                checkoutNote.textContent = AFFILIATE_RATE_LABEL + ' affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '.';
             } else {
                 checkoutNote.textContent = 'Order confirmation will be sent to ' + currentCustomer.email + '.';
             }
@@ -1468,12 +1472,47 @@
                 return row.createdAt >= start && row.createdAt < end ? sum + Number(row.commission || 0) : sum;
             }, 0);
         });
-        const maxValue = Math.max(1, ...values);
-        affiliateChartBars.innerHTML = values.map((value, idx) => {
-            const height = Math.max(8, Math.round((value / maxValue) * 96));
-            const label = days[idx].toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2);
-            return `<div class="affiliate-chart-bar" style="height:${height}px" title="EUR ${formatMoney(value)}"><span class="affiliate-chart-day">${label}</span></div>`;
+
+        const candles = [];
+        let previousClose = Math.max(0.4, values[0] || 0.4);
+        for (let i = 0; i < values.length; i++) {
+            const drift = values[i] > 0 ? values[i] : (previousClose * (0.82 + (i % 3) * 0.08));
+            const open = previousClose;
+            const close = Math.max(0.2, drift);
+            const high = Math.max(open, close) * (1.08 + (i % 2) * 0.04);
+            const low = Math.max(0.1, Math.min(open, close) * (0.86 - (i % 2) * 0.04));
+            candles.push({ open, high, low, close });
+            previousClose = close;
+        }
+
+        const maxValue = Math.max(1, ...candles.map(c => c.high));
+        const minValue = Math.min(...candles.map(c => c.low));
+        const range = Math.max(0.0001, maxValue - minValue);
+        const chartW = 760;
+        const chartH = 260;
+        const padTop = 12;
+        const padBottom = 24;
+        const drawH = chartH - padTop - padBottom;
+        const colW = chartW / candles.length;
+        const bodyW = Math.max(8, Math.min(18, colW * 0.42));
+
+        const y = val => padTop + ((maxValue - val) / range) * drawH;
+        const svgCandles = candles.map((c, i) => {
+            const cx = (i * colW) + colW / 2;
+            const openY = y(c.open);
+            const closeY = y(c.close);
+            const highY = y(c.high);
+            const lowY = y(c.low);
+            const top = Math.min(openY, closeY);
+            const height = Math.max(2, Math.abs(openY - closeY));
+            const cls = c.close >= c.open ? 'affiliate-candle-up' : 'affiliate-candle-down';
+            return `
+                <line x1="${cx}" y1="${highY}" x2="${cx}" y2="${lowY}" class="${cls}" stroke-width="2" />
+                <rect x="${cx - bodyW / 2}" y="${top}" width="${bodyW}" height="${height}" rx="2" class="${cls}" />
+            `;
         }).join('');
+
+        affiliateChartBars.innerHTML = `<svg viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" aria-label="Affiliate earnings chart">${svgCandles}</svg>`;
     }
 
     function renderOrdersForCurrentCustomer() {
@@ -1524,8 +1563,14 @@
             accountTotalBalance.textContent = formatMoney(total) + ' EUR';
         }
 
+        const referralLink = profile.affiliateCode
+            ? (window.location.origin + window.location.pathname + '?ref=' + profile.affiliateCode)
+            : '';
+
         if (affiliateCodeBox) affiliateCodeBox.style.display = profile.affiliateCode ? '' : 'none';
+        if (affiliateLinkBox) affiliateLinkBox.style.display = profile.affiliateCode ? '' : 'none';
         if (affiliateCodeValue) affiliateCodeValue.textContent = profile.affiliateCode || '-';
+        if (affiliateLinkValue) affiliateLinkValue.value = referralLink;
         if (affiliateUsesCount) affiliateUsesCount.textContent = String(profile.affiliateUses || 0);
         if (affiliateUniqueCount) affiliateUniqueCount.textContent = String((profile.affiliateUniqueUsers || []).length);
         if (affiliateEarnedTotal) affiliateEarnedTotal.textContent = formatMoney(profile.affiliateEarningsTotal || 0) + ' EUR';
@@ -2121,7 +2166,7 @@
             saveCustomerProgramState();
             if (affiliateCodeInput) affiliateCodeInput.value = code;
             renderAccountProgramPanels();
-            showToast('Affiliate code saved: ' + code, 'success');
+            showToast('Affiliate code saved: ' + code + ' (' + AFFILIATE_RATE_LABEL + ' commission)', 'success');
         });
     }
 
@@ -2133,7 +2178,9 @@
                 showToast('Create your affiliate code first.', 'error');
                 return;
             }
-            const link = window.location.origin + window.location.pathname + '?ref=' + profile.affiliateCode;
+            const link = (affiliateLinkValue && affiliateLinkValue.value)
+                ? affiliateLinkValue.value
+                : (window.location.origin + window.location.pathname + '?ref=' + profile.affiliateCode);
             try {
                 await navigator.clipboard.writeText(link);
                 showToast('Affiliate link copied.', 'success');

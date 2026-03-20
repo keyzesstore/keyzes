@@ -2461,31 +2461,60 @@ a {
     font-size: 16px;
 }
 
+.affiliate-code-rate {
+    color: #8cf26f;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.affiliate-link-box {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    display: grid;
+    gap: 8px;
+    background: rgba(16, 22, 38, 0.62);
+}
+
+.affiliate-link-box input {
+    width: 100%;
+    background: #0d1324;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    color: #dce4ff;
+    padding: 10px 12px;
+}
+
 .affiliate-chart {
     margin-top: 12px;
     margin-bottom: 14px;
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 8px;
-    align-items: end;
-    min-height: 120px;
-    padding-bottom: 20px;
-}
-
-.affiliate-chart-bar {
-    background: linear-gradient(180deg, #ffca55, #f37920);
-    border-radius: 8px 8px 4px 4px;
-    min-height: 8px;
+    min-height: 260px;
+    border: 1px solid rgba(92, 107, 158, 0.22);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(32, 39, 73, 0.56), rgba(20, 24, 44, 0.96)),
+        linear-gradient(90deg, rgba(86, 102, 152, 0.16) 1px, transparent 1px),
+        linear-gradient(rgba(86, 102, 152, 0.16) 1px, transparent 1px);
+    background-size: auto, 34px 34px, 34px 34px;
+    overflow: hidden;
     position: relative;
 }
 
-.affiliate-chart-day {
-    position: absolute;
-    bottom: -18px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: var(--text-muted);
-    font-size: 10px;
+.affiliate-chart svg {
+    width: 100%;
+    height: 260px;
+    display: block;
+}
+
+.affiliate-candle-up {
+    fill: #45d8ad;
+    stroke: #45d8ad;
+}
+
+.affiliate-candle-down {
+    fill: #ea5757;
+    stroke: #ea5757;
 }
 
 .affiliate-withdraw-box {

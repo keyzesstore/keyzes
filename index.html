@@ -236,7 +236,7 @@
                         <span id="cartSubtotal">$0.00</span>
                     </div>
                     <div class="cart-summary-row" id="cartDiscountRow" style="display:none;">
-                        <span>Affiliate Discount (5%)</span>
+                        <span>Affiliate Discount (3%)</span>
                         <span id="cartDiscount">-$0.00</span>
                     </div>
                     <div class="cart-summary-row cart-total">
@@ -319,17 +319,22 @@
                     <div class="account-pane" data-account-pane="affiliate">
                         <section class="settings-card">
                             <h3>Affiliate Program</h3>
-                            <p class="settings-hint">Create your code, earn 5% commission, and your buyers get 5% discount on all products.</p>
+                            <p class="settings-hint">Create your code, earn 3% commission, and your buyers get 3% discount on all products.</p>
                             <div class="affiliate-create-row">
                                 <input type="text" id="affiliateCodeInput" placeholder="Create code (A-Z, 0-9)">
                                 <button type="button" class="admin-btn admin-btn-primary" id="affiliateCreateBtn">Create Code</button>
                             </div>
+                            <div class="affiliate-link-box" id="affiliateLinkBox" style="display:none;">
+                                <span class="settings-hint" style="margin:0;">Your referral link</span>
+                                <input type="text" id="affiliateLinkValue" readonly>
+                                <button type="button" class="admin-btn admin-btn-primary" id="affiliateCopyBtn">Copy Referral Link</button>
+                            </div>
                             <div class="affiliate-code-box" id="affiliateCodeBox" style="display:none;">
                                 <div>
-                                    <span class="settings-hint" style="margin:0;">Your code</span>
+                                    <span class="settings-hint" style="margin:0;">Your promotional code</span>
                                     <strong id="affiliateCodeValue">-</strong>
                                 </div>
-                                <button type="button" class="admin-btn admin-btn-outline" id="affiliateCopyBtn">Copy Link</button>
+                                <span class="affiliate-code-rate">Earn 3%</span>
                             </div>
                             <div class="affiliate-stats-grid">
                                 <div class="account-balance-item">
@@ -343,6 +348,10 @@
                                 <div class="account-balance-item">
                                     <span>Total Earned</span>
                                     <strong id="affiliateEarnedTotal">0.00 EUR</strong>
+                                </div>
+                                <div class="account-balance-item">
+                                    <span>Commission Rate</span>
+                                    <strong>3%</strong>
                                 </div>
                             </div>
                             <div class="affiliate-chart" id="affiliateChartBars"></div>
