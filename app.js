@@ -608,9 +608,10 @@
     saveJSON(STORAGE_CART, cart);
 
     // Seed demo products only on very first visit (localStorage key doesn't exist yet)
+    // Only save locally — never push seed to Supabase (admin controls the shared catalog)
     if (localStorage.getItem(STORAGE_PRODUCTS) === null || (products.length > 0 && !products[0].variants)) {
         products = getSeedProducts();
-        saveProducts();
+        saveJSON(STORAGE_PRODUCTS, products);
     }
 
     captureReferralFromUrl();
@@ -3286,11 +3287,11 @@
     // ===========================
 
     // Try to load shared product catalog from Supabase, then render
+    // Supabase catalog always overrides local data
     loadProductsFromSupabase().then(function(loaded) {
         if (loaded) {
             renderProducts();
-            // Also update admin view if visible
-            if (typeof renderAdminProducts === 'function') try { renderAdminProducts(); } catch(e) {}
+            try { renderAdminProducts(); } catch(e) {}
         }
     });
 
