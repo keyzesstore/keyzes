@@ -577,12 +577,24 @@
         }
     }
 
+    function pruneCartMissingProducts() {
+        const before = cart.length;
+        cart = cart.filter(item => products.some(p => p.id === item.id));
+        if (cart.length !== before) {
+            saveJSON(STORAGE_CART, cart);
+            updateCartBadge();
+            updateCheckoutState();
+            return true;
+        }
+        return false;
+    }
+
     async function loadProductsFromSupabase() {
         if (!supabaseClient) return false;
         try {
             const { data, error } = await supabaseClient
                 .from('product_catalog')
-                .select('data')
+                .select('data,updated_at')
                 .eq('id', 'main')
                 .single();
             if (error) {
@@ -592,6 +604,7 @@
             if (!data || !Array.isArray(data.data)) return false;
             products = data.data;
             saveJSON(STORAGE_PRODUCTS, products);
+            pruneCartMissingProducts();
             console.log('[Product Sync] Loaded', products.length, 'products from Supabase');
             return true;
         } catch (e) {
@@ -1107,6 +1120,9 @@
         const cartItems = $('#cartItems');
         const cartEmpty = $('#cartEmpty');
         const cartSummary = $('#cartSummary');
+
+        // Remove stale cart items if product was deleted from the catalog.
+        pruneCartMissingProducts();
 
         if (cart.length === 0) {
             cartItems.innerHTML = '';
@@ -3304,8 +3320,21 @@
         if (loaded) {
             renderProducts();
             try { renderAdminProducts(); } catch(e) {}
+            if (cartView.style.display !== 'none') renderCart();
+            updateCartBadge();
         }
     });
+
+    // Keep all sessions in sync without requiring a refresh.
+    setInterval(function() {
+        loadProductsFromSupabase().then(function(loaded) {
+            if (!loaded) return;
+            renderProducts();
+            try { renderAdminProducts(); } catch(e) {}
+            if (cartView.style.display !== 'none') renderCart();
+            updateCartBadge();
+        });
+    }, 4000);
 
     renderProducts();
     initializeCustomerAuth();
