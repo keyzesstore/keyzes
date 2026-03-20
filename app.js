@@ -2205,6 +2205,8 @@
         customerSettingsView.style.display = 'none';
         siteFooter.style.display = 'none';
         showAdminSection('dashboard');
+        // Sync admin's product catalog to Supabase so all users see the same data
+        syncProductsToSupabase();
     }
 
     // Admin trigger (gear icon / nav link)
