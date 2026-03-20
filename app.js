@@ -191,6 +191,8 @@
         localStorage.removeItem(STORAGE_PENDING_REF);
     }
 
+    let pendingRefAction = null; // 'signup' or 'apply' — deferred until init complete
+
     function captureReferralFromUrl() {
         const params = new URLSearchParams(window.location.search || '');
         const refCode = cleanAffiliateCode(params.get('ref'));
@@ -213,13 +215,9 @@
         const cleanUrl = window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '') + window.location.hash;
         window.history.replaceState({}, document.title, cleanUrl);
         if (!currentCustomer) {
-            showToast('Referral link detected. Sign up to activate your discount.', 'info');
-            // Auto-open signup with referral code pre-filled
-            setTimeout(function() { openCustomerAuth('signup', 'Create an account to activate your referral discount.'); }, 300);
+            pendingRefAction = 'signup';
         } else {
-            // Already logged in — go to account overview & auto-apply
-            applyPendingReferralToCustomer(currentCustomer);
-            setTimeout(function() { showCustomerSettings(); }, 300);
+            pendingRefAction = 'apply';
         }
     }
 
@@ -3244,6 +3242,15 @@
 
     renderProducts();
     initializeCustomerAuth();
+
+    // Handle deferred referral link action after all DOM refs are ready
+    if (pendingRefAction === 'signup') {
+        showToast('Referral link detected. Sign up to activate your discount.', 'info');
+        setTimeout(function() { openCustomerAuth('signup', 'Create an account to activate your referral discount.'); }, 100);
+    } else if (pendingRefAction === 'apply') {
+        applyPendingReferralToCustomer(currentCustomer);
+        setTimeout(function() { showCustomerSettings(); }, 100);
+    }
 
     // If admin session was saved, keep auth state but don't auto-open panel
     // They can click the gear icon to open it
