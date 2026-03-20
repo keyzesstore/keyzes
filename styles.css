@@ -2831,6 +2831,20 @@ a {
     color: #dce4ff;
 }
 
+.g4-withdraw-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+.g4-withdraw-actions .g4-withdraw-btn,
+.g4-withdraw-actions .g4-btn-transfer {
+    min-width: 180px;
+    text-align: center;
+}
+
 /* Row 5: Stats */
 .g4-stats-row {
     display: grid;
@@ -2930,6 +2944,10 @@ a {
     white-space: nowrap;
 }
 
+.g4-btn-transfer:hover {
+    filter: brightness(1.04);
+}
+
 /* G4 Affiliate Responsive */
 @media (max-width: 768px) {
     .g4-info-row {
@@ -2960,6 +2978,21 @@ a {
 
     .g4-mid-row {
         grid-template-columns: 1fr;
+    }
+
+    .g4-withdraw-card {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .g4-withdraw-actions {
+        width: 100%;
+    }
+
+    .g4-withdraw-actions .g4-withdraw-btn,
+    .g4-withdraw-actions .g4-btn-transfer {
+        width: 100%;
+        min-width: 0;
     }
 
     .g4-stats-row {
