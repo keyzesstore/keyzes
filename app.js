@@ -562,13 +562,18 @@
         if (!supabaseClient) return;
         try {
             // Upsert the full catalog as a single row
-            await supabaseClient.from('product_catalog').upsert({
+            const { error } = await supabaseClient.from('product_catalog').upsert({
                 id: 'main',
                 data: products,
                 updated_at: new Date().toISOString(),
             });
+            if (error) {
+                console.error('[Product Sync] Supabase upsert error:', error.message, error);
+            } else {
+                console.log('[Product Sync] Pushed', products.length, 'products to Supabase');
+            }
         } catch (e) {
-            console.warn('[Product Sync] Failed to push products:', e);
+            console.error('[Product Sync] Failed to push products:', e);
         }
     }
 
@@ -580,9 +585,14 @@
                 .select('data')
                 .eq('id', 'main')
                 .single();
-            if (error || !data || !Array.isArray(data.data)) return false;
+            if (error) {
+                console.warn('[Product Sync] Supabase load error:', error.message, error);
+                return false;
+            }
+            if (!data || !Array.isArray(data.data)) return false;
             products = data.data;
             saveJSON(STORAGE_PRODUCTS, products);
+            console.log('[Product Sync] Loaded', products.length, 'products from Supabase');
             return true;
         } catch (e) {
             console.warn('[Product Sync] Failed to load products:', e);
