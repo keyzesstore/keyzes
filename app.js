@@ -85,6 +85,9 @@
         errorMsg.textContent = msg;
         error.style.display = 'flex';
 
+        overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible';
+        overlay.style.opacity = '1';
         overlay.classList.remove('closing');
         overlay.classList.add('active');
     }
@@ -93,18 +96,18 @@
         const overlay = document.getElementById('emailConfirmOverlay');
         if (!overlay) return;
 
-        overlay.classList.add('closing');
-        setTimeout(() => {
-            overlay.classList.remove('active', 'closing');
+        overlay.classList.remove('active', 'closing');
+        overlay.style.opacity = '0';
+        overlay.style.visibility = 'hidden';
+        overlay.style.display = 'none';
 
-            const loading = document.getElementById('emailConfirmLoading');
-            const success = document.getElementById('emailConfirmSuccess');
-            const error = document.getElementById('emailConfirmError');
+        const loading = document.getElementById('emailConfirmLoading');
+        const success = document.getElementById('emailConfirmSuccess');
+        const error = document.getElementById('emailConfirmError');
 
-            if (loading) loading.style.display = 'none';
-            if (success) success.style.display = 'none';
-            if (error) error.style.display = 'none';
-        }, 220);
+        if (loading) loading.style.display = 'none';
+        if (success) success.style.display = 'none';
+        if (error) error.style.display = 'none';
     }
 
     function showEmailConfirmSuccessOverlay(title, message) {
