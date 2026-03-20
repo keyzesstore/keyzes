@@ -2269,10 +2269,76 @@ a {
     padding: 36px 0 64px;
 }
 
+.account-layout {
+    display: grid;
+    grid-template-columns: 230px minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.account-side-menu {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    display: grid;
+    gap: 8px;
+    position: sticky;
+    top: 94px;
+}
+
+.account-side-link {
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 10px 12px;
+    cursor: pointer;
+}
+
+.account-side-link:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.account-side-link.active {
+    border-color: rgba(243, 121, 32, 0.35);
+    background: linear-gradient(135deg, rgba(243, 121, 32, 0.18), rgba(255, 202, 85, 0.14));
+    color: #ffe0a8;
+}
+
+.account-panes {
+    min-width: 0;
+}
+
+.account-pane {
+    display: none;
+}
+
+.account-pane.active {
+    display: grid;
+    gap: 18px;
+    animation: accountPaneIn 0.22s ease;
+}
+
+@keyframes accountPaneIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .account-grid {
     display: grid;
     gap: 18px;
-    max-width: 760px;
+    max-width: none;
 }
 
 .settings-card-hero {
@@ -3519,6 +3585,23 @@ a {
 
     .account-view {
         padding: 24px 0 52px;
+    }
+
+    .account-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .account-side-menu {
+        position: static;
+        display: flex;
+        overflow-x: auto;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .account-side-link {
+        white-space: nowrap;
+        flex: 0 0 auto;
     }
 
     .account-profile-list > div {

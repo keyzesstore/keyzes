@@ -1240,6 +1240,8 @@
     const customerForgotEmail = $('#customerForgotEmail');
     const customerResetPassword = $('#customerResetPassword');
     const customerResetPasswordConfirm = $('#customerResetPasswordConfirm');
+    const accountSideLinks = $$('.account-side-link');
+    const accountPanes = $$('.account-pane');
     const accountHeroAvatar = $('#accountHeroAvatar');
     const accountHeroName = $('#accountHeroName');
     const accountHeroEmail = $('#accountHeroEmail');
@@ -1970,6 +1972,16 @@
         renderCart();
     }
 
+    function showAccountSection(section) {
+        const safeSection = section || 'overview';
+        accountSideLinks.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.accountNav === safeSection);
+        });
+        accountPanes.forEach(pane => {
+            pane.classList.toggle('active', pane.dataset.accountPane === safeSection);
+        });
+    }
+
     function showCustomerSettings() {
         if (!currentCustomer) {
             openCustomerAuth('login', 'Log in to access your account settings.');
@@ -1992,6 +2004,7 @@
         customerPasswordForm.reset();
         customerPasswordError.textContent = '';
         if (affiliateActionMsg) affiliateActionMsg.textContent = '';
+        showAccountSection('overview');
         renderAccountProgramPanels();
         customerDeleteHelp.textContent = isDeleteAccountConfigured()
             ? 'Delete request will be processed immediately.'
@@ -2054,6 +2067,9 @@
         showCustomerSettings();
         mobileMenuBtn.classList.remove('active');
         mobileNav.classList.remove('open');
+    });
+    accountSideLinks.forEach(button => {
+        button.addEventListener('click', () => showAccountSection(button.dataset.accountNav));
     });
 
     if (customerProfileAvatarFile) {
