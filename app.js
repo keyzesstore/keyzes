@@ -177,7 +177,8 @@
         if (!pendingCode) return;
 
         const ownerEmail = getRefOwnerEmail(pendingCode);
-        if (!ownerEmail || ownerEmail === normalizeEmail(customer.email)) {
+        // Only reject if we KNOW the owner and it's the same user
+        if (ownerEmail && ownerEmail === normalizeEmail(customer.email)) {
             localStorage.removeItem(STORAGE_PENDING_REF);
             return;
         }
@@ -2031,10 +2032,16 @@
         if (signupRefCode) {
             const referralCheck = validateReferralCodeForEmail(signupRefCode, email);
             if (!referralCheck.ok) {
-                customerSignupError.textContent = referralCheck.message;
-                return;
+                // If the code came from a referral link, trust it even if not in local storage
+                const pendingRef = cleanAffiliateCode(localStorage.getItem(STORAGE_PENDING_REF));
+                if (pendingRef && pendingRef === signupRefCode) {
+                    // Code from URL — skip local validation
+                } else {
+                    customerSignupError.textContent = referralCheck.message;
+                    return;
+                }
             }
-            localStorage.setItem(STORAGE_PENDING_REF, referralCheck.cleaned);
+            localStorage.setItem(STORAGE_PENDING_REF, signupRefCode);
         }
 
         customerSignupError.textContent = '';
