@@ -19,8 +19,10 @@
     const STORAGE_AFFILIATE_CODES = 'keyzes_affiliate_codes_v1';
     const STORAGE_PENDING_REF = 'keyzes_pending_ref_v1';
     const ADMIN_EMAIL = 'keyzes.store@gmail.com';
-    const AFFILIATE_RATE = 0.03;
-    const AFFILIATE_RATE_LABEL = '3%';
+    const AFFILIATE_DISCOUNT_RATE = 0.05;
+    const AFFILIATE_DISCOUNT_LABEL = '5%';
+    const AFFILIATE_COMMISSION_RATE = 0.03;
+    const AFFILIATE_COMMISSION_LABEL = '3%';
 
     // ---- Default Admin Credentials ----
     const DEFAULT_ADMIN = { username: 'admin', password: 'admin123' };
@@ -108,7 +110,7 @@
     function getCheckoutPricing(customer, cartItems) {
         const subtotal = cartItems.reduce((sum, item) => sum + (getItemPrice(item) * item.qty), 0);
         const activeRefCode = getActiveReferralCodeForCustomer(customer);
-        const discountAmount = activeRefCode ? subtotal * AFFILIATE_RATE : 0;
+        const discountAmount = activeRefCode ? subtotal * AFFILIATE_DISCOUNT_RATE : 0;
         const total = Math.max(0, subtotal - discountAmount);
         return {
             subtotal,
@@ -149,7 +151,7 @@
         const buyerEmail = normalizeEmail(customer.email);
         if (!ownerEmail || ownerEmail === buyerEmail) return;
 
-        const commission = pricing.subtotal * AFFILIATE_RATE;
+        const commission = pricing.subtotal * AFFILIATE_COMMISSION_RATE;
         const ownerProfile = getCustomerProfile(ownerEmail, true);
         ownerProfile.affiliateBalance = Number(ownerProfile.affiliateBalance || 0) + commission;
         ownerProfile.affiliateEarningsTotal = Number(ownerProfile.affiliateEarningsTotal || 0) + commission;
@@ -184,7 +186,7 @@
         if (!profile.referredBy) {
             profile.referredBy = pendingCode;
             saveCustomerProgramState();
-            showToast('Affiliate discount activated (' + AFFILIATE_RATE_LABEL + ') for your account.', 'success');
+            showToast('Affiliate discount activated (' + AFFILIATE_DISCOUNT_LABEL + ') for your account.', 'success');
         }
         localStorage.removeItem(STORAGE_PENDING_REF);
     }
@@ -193,14 +195,26 @@
         const params = new URLSearchParams(window.location.search || '');
         const refCode = cleanAffiliateCode(params.get('ref'));
         if (!refCode) return;
-        if (!getRefOwnerEmail(refCode)) return;
+        const ownerEmail = getRefOwnerEmail(refCode);
+        if (!ownerEmail) return;
+
+        if (currentCustomer && normalizeEmail(currentCustomer.email) === normalizeEmail(ownerEmail)) {
+            params.delete('ref');
+            const cleanSearchSelf = params.toString();
+            const cleanUrlSelf = window.location.pathname + (cleanSearchSelf ? ('?' + cleanSearchSelf) : '') + window.location.hash;
+            window.history.replaceState({}, document.title, cleanUrlSelf);
+            showToast('You cannot use your own affiliate code.', 'error');
+            return;
+        }
 
         localStorage.setItem(STORAGE_PENDING_REF, refCode);
         params.delete('ref');
         const cleanSearch = params.toString();
         const cleanUrl = window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '') + window.location.hash;
         window.history.replaceState({}, document.title, cleanUrl);
-        showToast('Affiliate code applied. You will get ' + AFFILIATE_RATE_LABEL + ' discount at checkout.', 'success');
+        if (!currentCustomer) {
+            showToast('Referral link detected. Sign in to activate your discount.', 'info');
+        }
     }
 
     function sanitizeCustomer(customer) {
@@ -1265,6 +1279,7 @@
     const affiliateLinkBox = $('#affiliateLinkBox');
     const affiliateLinkValue = $('#affiliateLinkValue');
     const affiliateCopyBtn = $('#affiliateCopyBtn');
+    const affiliateBalanceLarge = $('#affiliateBalanceLarge');
     const affiliateUsesCount = $('#affiliateUsesCount');
     const affiliateUniqueCount = $('#affiliateUniqueCount');
     const affiliateEarnedTotal = $('#affiliateEarnedTotal');
@@ -1451,7 +1466,7 @@
             if (!isSignedIn) {
                 checkoutNote.textContent = 'Sign in to place your order and save your cart.';
             } else if (pricing.activeRefCode) {
-                checkoutNote.textContent = AFFILIATE_RATE_LABEL + ' affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '.';
+                checkoutNote.textContent = AFFILIATE_DISCOUNT_LABEL + ' affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '.';
             } else {
                 checkoutNote.textContent = 'Order confirmation will be sent to ' + currentCustomer.email + '.';
             }
@@ -1590,6 +1605,7 @@
 
         if (storeCreditBalance) storeCreditBalance.textContent = formatMoney(profile.storeCredit) + ' EUR';
         if (affiliateBalance) affiliateBalance.textContent = formatMoney(profile.affiliateBalance) + ' EUR';
+        if (affiliateBalanceLarge) affiliateBalanceLarge.textContent = formatMoney(profile.affiliateBalance) + ' EUR';
         if (accountTotalBalance) {
             const total = Number(profile.storeCredit || 0) + Number(profile.affiliateBalance || 0);
             accountTotalBalance.textContent = formatMoney(total) + ' EUR';
@@ -2214,7 +2230,7 @@
             saveCustomerProgramState();
             if (affiliateCodeInput) affiliateCodeInput.value = code;
             renderAccountProgramPanels();
-            showToast('Affiliate code saved: ' + code + ' (' + AFFILIATE_RATE_LABEL + ' commission)', 'success');
+            showToast('Affiliate code saved: ' + code + ' (' + AFFILIATE_COMMISSION_LABEL + ' commission)', 'success');
         });
     }
 
@@ -2242,7 +2258,7 @@
             saveCustomerProgramState();
             updateCheckoutState();
             if (affiliateApplyCodeInput) affiliateApplyCodeInput.value = check.cleaned;
-            if (affiliateActionMsg) affiliateActionMsg.textContent = 'Referral code applied. You get ' + AFFILIATE_RATE_LABEL + ' discount.';
+            if (affiliateActionMsg) affiliateActionMsg.textContent = 'Referral code applied. You get ' + AFFILIATE_DISCOUNT_LABEL + ' discount.';
             showToast('Referral code applied successfully.', 'success');
         });
     }
