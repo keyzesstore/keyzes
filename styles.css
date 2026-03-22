@@ -1511,7 +1511,7 @@ a {
     }
 
     .logo-img {
-        height: 108px;
+        height: 86px;
     }
 
     .search-wrapper {
@@ -1537,8 +1537,8 @@ a {
     }
 
     .nav-link {
-        padding: 8px 12px;
-        font-size: 13px;
+        padding: 7px 10px;
+        font-size: 12px;
         gap: 5px;
         white-space: nowrap;
     }
@@ -1558,8 +1558,8 @@ a {
     }
 
     .nav-auth-btn {
-        padding: 8px 12px;
-        font-size: 13px;
+        padding: 7px 10px;
+        font-size: 12px;
         white-space: nowrap;
     }
 
@@ -1825,17 +1825,17 @@ a {
     }
 
     .logo-img {
-        height: 96px;
+        height: 76px;
     }
 
     .nav-link {
-        padding: 8px 10px;
-        font-size: 12px;
+        padding: 6px 8px;
+        font-size: 11px;
     }
 
     .nav-auth-btn {
-        padding: 8px 10px;
-        font-size: 12px;
+        padding: 6px 8px;
+        font-size: 11px;
     }
 
     .customer-session-account-btn {
