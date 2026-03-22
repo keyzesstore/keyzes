@@ -1535,11 +1535,11 @@ a {
     .nav-links {
         display: flex;
         order: 2;
-        margin-left: auto;
+        margin-left: 12px;
         gap: 8px;
         min-width: 0;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
     }
 
     .mobile-menu-btn {
