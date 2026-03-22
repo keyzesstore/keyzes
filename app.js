@@ -1404,16 +1404,37 @@
             const pricing = getCheckoutPricing(currentCustomer, cart);
             const cartSnapshot = cart.map(item => ({ ...item }));
 
-            // Stripe doesn't support multiple recurring prices with different intervals
+            // Stripe only supports one recurring interval per session.
+            // If there are auto-renew items with different billing periods,
+            // keep only the most common period as recurring and convert the rest to one-time.
             const renewItems = cart.filter(i => i.autoRenew);
             if (renewItems.length > 1) {
-                const periods = new Set(renewItems.map(i => {
+                const periodCounts = {};
+                renewItems.forEach(i => {
                     const p = products.find(pr => pr.id === i.id);
-                    return i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
-                }));
-                if (periods.size > 1) {
-                    showToast('Auto-renewal items with different billing periods cannot be combined in one checkout. Please checkout them separately.', 'error');
-                    return;
+                    const period = i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
+                    periodCounts[period] = (periodCounts[period] || 0) + 1;
+                });
+                const uniquePeriods = Object.keys(periodCounts);
+                if (uniquePeriods.length > 1) {
+                    // Keep the most common period, convert others to one-time
+                    const keepPeriod = uniquePeriods.sort((a, b) => periodCounts[b] - periodCounts[a])[0];
+                    const converted = [];
+                    cart.forEach(i => {
+                        if (i.autoRenew) {
+                            const p = products.find(pr => pr.id === i.id);
+                            const period = i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
+                            if (period !== keepPeriod) {
+                                i.autoRenew = false;
+                                converted.push(p ? p.title : 'Item');
+                            }
+                        }
+                    });
+                    if (converted.length) {
+                        showToast(converted.join(', ') + ' converted to one-time purchase (different billing period). You can buy separately for auto-renewal.', 'info');
+                        saveJSON(STORAGE_CART, cart);
+                        renderCart();
+                    }
                 }
             }
 
