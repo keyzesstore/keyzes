@@ -2019,7 +2019,7 @@
         try {
             const { data, error } = await supabaseClient
                 .from('orders')
-                .select('id, customer_email, status, delivery_status, delivery_description, subtotal, currency, is_subscription, subscription_period, created_at, delivered_at')
+                .select('id, customer_email, status, delivery_status, delivery_description, subtotal, currency, is_subscription, subscription_period, stripe_subscription_id, created_at, delivered_at')
                 .eq('customer_email', email.toLowerCase())
                 .order('created_at', { ascending: false });
             if (error) throw error;
@@ -2145,11 +2145,51 @@
             ${deliveredAt ? `<div class="order-detail-row"><strong>Delivered:</strong> <span>${escapeHtml(deliveredAt)}</span></div>` : ''}
             ${order.is_subscription ? '<div class="order-detail-row"><strong>Type:</strong> <span>Subscription</span></div>' : ''}
             <div class="order-detail-row"><strong>Total:</strong> <span>$${formatMoney(order.subtotal || 0)}</span></div>
+            ${order.is_subscription && order.stripe_subscription_id ? `<div style="margin-top:12px;"><button class="btn-cancel-sub" data-cancel-order-id="${escapeAttr(String(order.id))}">Cancel Subscription</button></div>` : ''}
             <h4 style="margin:16px 0 8px;color:var(--text-primary);">Items</h4>
             ${itemsHtml}
             ${order.delivery_description ? `<h4 style="margin:16px 0 8px;color:var(--text-primary);">Delivery Info</h4><div class="order-detail-description">${escapeHtml(order.delivery_description)}</div>` : ''}
         `;
-    }
+
+        // Bind cancel subscription button
+        const cancelBtn = body.querySelector('.btn-cancel-sub');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', async () => {
+                const oid = cancelBtn.dataset.cancelOrderId;
+                showConfirm('Cancel Subscription?', 'Your auto-renewal will be stopped. You will not be charged again.', async () => {
+                    cancelBtn.disabled = true;
+                    cancelBtn.textContent = 'Cancelling...';
+                    try {
+                        const url = APP_CONFIG.cancelSubscriptionFunctionUrl;
+                        if (!url) { showToast('Cancel subscription not configured.', 'error'); return; }
+                        let token = latestAccessToken || '';
+                        if (authReady()) {
+                            const sr = await supabaseClient.auth.getSession();
+                            const s = sr?.data?.session;
+                            if (s?.access_token) token = s.access_token;
+                        }
+                        const resp = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                            body: JSON.stringify({ orderId: oid }),
+                        });
+                        const data = await resp.json();
+                        if (data.ok) {
+                            showToast('Subscription cancelled successfully.', 'success');
+                            overlay.style.display = 'none';
+                            renderOrdersForCurrentCustomer();
+                        } else {
+                            showToast('Failed to cancel: ' + (data.error || 'Unknown error'), 'error');
+                        }
+                    } catch (err) {
+                        showToast('Error cancelling subscription.', 'error');
+                    } finally {
+                        cancelBtn.disabled = false;
+                        cancelBtn.textContent = 'Cancel Subscription';
+                    }
+                });
+            });
+        }
 
     // Order detail close
     document.addEventListener('click', e => {
