@@ -348,53 +348,20 @@
         const stripeStatus = params.get('stripe');
         if (!stripeStatus) return;
 
-        // Clean URL immediately
-        params.delete('stripe');
-        const cleanSearch = params.toString();
-        const cleanUrl = window.location.origin + window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '');
-        window.history.replaceState({}, document.title, cleanUrl);
-
         if (stripeStatus === 'success') {
-            const pending = loadJSON('keyzes_pending_checkout', null);
-            if (pending && pending.length > 0) {
-                // More billing-period groups to checkout — auto-redirect silently
-                const nextGroup = pending.shift();
-                saveJSON('keyzes_pending_checkout', pending.length ? pending : null);
-                cart = nextGroup;
-                saveJSON(STORAGE_CART, cart);
-                updateCartBadge();
-                setTimeout(async () => {
-                    if (!currentCustomer) {
-                        showToast('Payment successful! Remaining items are in your cart.', 'success');
-                        return;
-                    }
-                    const pricing = getCheckoutPricing(currentCustomer, cart);
-                    const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
-                    if (stripeResult.ok) {
-                        window.location.href = stripeResult.url;
-                    } else {
-                        showToast('First payment done. Could not auto-start next: ' + stripeResult.reason, 'error');
-                    }
-                }, 500);
-                return;
-            }
-
             cart = [];
             saveJSON(STORAGE_CART, cart);
-            localStorage.removeItem('keyzes_pending_checkout');
             updateCartBadge();
             if (typeof renderCart === 'function') renderCart();
             showToast('Payment successful. Thank you for your order!', 'success');
         } else if (stripeStatus === 'cancel') {
-            const pending = loadJSON('keyzes_pending_checkout', null);
-            if (pending && pending.length > 0) {
-                pending.forEach(group => { cart.push(...group); });
-                saveJSON(STORAGE_CART, cart);
-                localStorage.removeItem('keyzes_pending_checkout');
-                updateCartBadge();
-            }
             showToast('Stripe checkout was canceled.', 'info');
         }
+
+        params.delete('stripe');
+        const cleanSearch = params.toString();
+        const cleanUrl = window.location.origin + window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '');
+        window.history.replaceState({}, document.title, cleanUrl);
     }
 
     function showEmailConfirmError(msg) {
@@ -1438,34 +1405,8 @@
             const cartSnapshot = cart.map(item => ({ ...item }));
 
             if (getStripeCheckoutFunctionUrl()) {
-                // Stripe requires all recurring items to share the same billing interval.
-                // If there are different periods, split into sequential silent checkouts.
-                const renewItems = cart.filter(i => i.autoRenew);
-                let checkoutCart = cart;
-
-                if (renewItems.length > 1) {
-                    const periodGroups = {};
-                    renewItems.forEach(i => {
-                        const p = products.find(pr => pr.id === i.id);
-                        const period = i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
-                        if (!periodGroups[period]) periodGroups[period] = [];
-                        periodGroups[period].push(i);
-                    });
-                    const uniquePeriods = Object.keys(periodGroups);
-
-                    if (uniquePeriods.length > 1) {
-                        const onetimeItems = cart.filter(i => !i.autoRenew);
-                        const firstPeriod = uniquePeriods[0];
-                        checkoutCart = [...onetimeItems, ...periodGroups[firstPeriod]];
-                        const remainingGroups = uniquePeriods.slice(1).map(p => periodGroups[p]);
-                        saveJSON('keyzes_pending_checkout', remainingGroups);
-                    }
-                }
-
-                const checkoutPricing = getCheckoutPricing(currentCustomer, checkoutCart);
-                const stripeResult = await createStripeCheckoutSession(currentCustomer, checkoutCart, checkoutPricing);
+                const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
                 if (!stripeResult.ok) {
-                    localStorage.removeItem('keyzes_pending_checkout');
                     showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
                     return;
                 }

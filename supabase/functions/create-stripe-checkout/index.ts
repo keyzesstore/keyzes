@@ -98,16 +98,9 @@ Deno.serve(async (req) => {
             );
         }
 
-        // Determine if this is a subscription checkout
+        // Always use payment mode — auto-renewal info is stored as order metadata
         const hasSubscription = items.some((i: Record<string, unknown>) => i.subscriptionType === 'subscription');
-        const checkoutMode = hasSubscription ? 'subscription' : 'payment';
-
-        const periodToRecurring: Record<string, { interval: string; interval_count: number }> = {
-            '1_month': { interval: 'month', interval_count: 1 },
-            '3_months': { interval: 'month', interval_count: 3 },
-            '6_months': { interval: 'month', interval_count: 6 },
-            '1_year': { interval: 'year', interval_count: 1 },
-        };
+        const checkoutMode = 'payment';
 
         const stripe = new Stripe(stripeSecretKey, {
             apiVersion: '2024-06-20',
@@ -121,7 +114,7 @@ Deno.serve(async (req) => {
                 const productId = String(item.productId || '').trim();
                 const unitAmount = moneyToCents(item.unitPrice);
                 const subType = String(item.subscriptionType || 'onetime');
-                const subPeriod = String(item.subscriptionPeriod || '1_month');
+                const subPeriod = String(item.subscriptionPeriod || '');
 
                 if (!title || unitAmount <= 0) return null;
 
@@ -133,17 +126,11 @@ Deno.serve(async (req) => {
                         metadata: {
                             product_id: productId,
                             variant_name: variantName,
+                            subscription_type: subType,
+                            subscription_period: subPeriod,
                         },
                     },
                 };
-
-                if (subType === 'subscription') {
-                    const rec = periodToRecurring[subPeriod] || { interval: 'month', interval_count: 1 };
-                    priceData.recurring = {
-                        interval: rec.interval,
-                        interval_count: rec.interval_count,
-                    };
-                }
 
                 return {
                     quantity: qty,
