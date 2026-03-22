@@ -1902,6 +1902,9 @@
         currentCustomer = sanitizeCustomer(customer);
         if (currentCustomer) {
             applyPendingReferralToCustomer(currentCustomer);
+            startOrderPolling();
+        } else {
+            stopOrderPolling();
         }
         renderCustomerState();
     }
@@ -2038,6 +2041,49 @@
 
     let currentOrderFilter = 'all';
     let cachedRemoteOrders = [];
+    let _orderPollInterval = null;
+
+    const _orderStatusLabels = { processing: 'Processing', delivering: 'Delivering', delivered: 'Delivered' };
+
+    function startOrderPolling() {
+        stopOrderPolling();
+        if (!currentCustomer || !isSupabaseConfigured()) return;
+        // Seed the baseline if not already loaded
+        if (!cachedRemoteOrders.length) {
+            fetchOrdersFromCloud(currentCustomer.email).then(orders => {
+                if (orders.length && !cachedRemoteOrders.length) cachedRemoteOrders = orders;
+            });
+        }
+        _orderPollInterval = setInterval(async () => {
+            if (!currentCustomer) { stopOrderPolling(); return; }
+            const fresh = await fetchOrdersFromCloud(currentCustomer.email);
+            if (!fresh.length) return;
+            for (const order of fresh) {
+                const prev = cachedRemoteOrders.find(o => o.id === order.id);
+                if (!prev) {
+                    // New order appeared
+                    showToast('New order received! #' + String(order.id).substring(0, 8), 'success');
+                } else {
+                    if (prev.delivery_status !== order.delivery_status) {
+                        const label = _orderStatusLabels[order.delivery_status] || order.delivery_status;
+                        showToast('Order #' + String(order.id).substring(0, 8) + ' is now ' + label + '.', 'info');
+                    }
+                    if (prev.subscription_status !== order.subscription_status && order.subscription_status === 'cancelled') {
+                        showToast('Subscription cancelled for order #' + String(order.id).substring(0, 8) + '.', 'info');
+                    }
+                }
+            }
+            cachedRemoteOrders = fresh;
+            // Re-render if customer orders view is visible
+            if (customerOrdersList && customerSettingsView && customerSettingsView.style.display !== 'none') {
+                renderOrdersForCurrentCustomer();
+            }
+        }, 30000);
+    }
+
+    function stopOrderPolling() {
+        if (_orderPollInterval) { clearInterval(_orderPollInterval); _orderPollInterval = null; }
+    }
 
     async function fetchOrdersFromCloud(email) {
         if (!isSupabaseConfigured()) return [];
