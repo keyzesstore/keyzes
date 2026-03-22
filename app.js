@@ -679,12 +679,18 @@
             payload.paymentMethodTypes = paymentMethodTypes;
         }
 
-        let authHeader = 'Bearer ' + APP_CONFIG.supabaseAnonKey;
-        if (authReady()) {
-            const { data } = await supabaseClient.auth.getSession();
-            const token = data && data.session && data.session.access_token;
-            if (token) authHeader = 'Bearer ' + token;
+        if (!authReady()) {
+            return { ok: false, reason: 'Authentication is not configured for checkout.' };
         }
+
+        const sessionResult = await supabaseClient.auth.getSession();
+        const sessionError = sessionResult && sessionResult.error;
+        const session = sessionResult && sessionResult.data && sessionResult.data.session;
+        if (sessionError || !session || !session.access_token) {
+            return { ok: false, reason: 'Your login session expired. Please log in again.' };
+        }
+
+        const authHeader = 'Bearer ' + session.access_token;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -701,9 +707,17 @@
                 signal: controller.signal,
             });
 
-            const result = await response.json().catch(() => ({}));
+            const raw = await response.text();
+            const result = raw ? JSON.parse(raw) : {};
             if (!response.ok) {
-                return { ok: false, reason: result.error || 'Could not start Stripe checkout.' };
+                if (response.status === 401 || response.status === 403) {
+                    return { ok: false, reason: 'Your login session expired. Please log in again.' };
+                }
+                const backendReason = result && (result.error || result.message);
+                return {
+                    ok: false,
+                    reason: backendReason || ('Could not start Stripe checkout (HTTP ' + response.status + ').')
+                };
             }
             if (!result.url) {
                 return { ok: false, reason: 'Stripe did not return a checkout URL.' };
@@ -712,6 +726,9 @@
         } catch (err) {
             if (err && err.name === 'AbortError') {
                 return { ok: false, reason: 'Stripe checkout request timed out. Check function deployment/secrets.' };
+            }
+            if (err && err.name === 'SyntaxError') {
+                return { ok: false, reason: 'Checkout returned an invalid response. Check edge function logs.' };
             }
             return { ok: false, reason: 'Network error contacting Stripe checkout function.' };
         } finally {
@@ -1338,6 +1355,9 @@
                 const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
                 if (!stripeResult.ok) {
                     showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
+                    if (String(stripeResult.reason || '').toLowerCase().includes('session expired')) {
+                        openCustomerAuth('login', 'Your session expired. Please log in again before checkout.');
+                    }
                     return;
                 }
 
