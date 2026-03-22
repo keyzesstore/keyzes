@@ -2019,7 +2019,7 @@
         try {
             const { data, error } = await supabaseClient
                 .from('orders')
-                .select('id, customer_email, status, delivery_status, delivery_description, subtotal, currency, is_subscription, subscription_period, created_at, delivered_at')
+                .select('id, customer_email, status, delivery_status, delivery_description, subtotal, currency, is_subscription, subscription_period, stripe_subscription_id, subscription_status, created_at, delivered_at')
                 .eq('customer_email', email.toLowerCase())
                 .order('created_at', { ascending: false });
             if (error) throw error;
@@ -2067,6 +2067,14 @@
             orders = orders.filter(o => o.delivery_status === currentOrderFilter);
         }
 
+        // Sort: active subscriptions first, then cancelled subs, then non-subs
+        orders.sort((a, b) => {
+            const aActive = a.is_subscription && a.subscription_status === 'active' ? 0 : 1;
+            const bActive = b.is_subscription && b.subscription_status === 'active' ? 0 : 1;
+            if (aActive !== bActive) return aActive - bActive;
+            return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        });
+
         if (!orders.length) {
             customerOrdersList.innerHTML = '<p class="settings-hint" style="margin:0;">No orders found.</p>';
             return;
@@ -2080,7 +2088,11 @@
             const st = order.delivery_status || 'processing';
             const stColor = statusColors[st] || '#888';
             const stLabel = statusLabels[st] || st;
-            const subBadge = order.is_subscription ? ' <span class="cart-sub-badge" style="font-size:11px;">Subscription</span>' : '';
+            const subBadge = order.is_subscription
+                ? (order.subscription_status === 'cancelled'
+                    ? ' <span class="cart-sub-badge sub-badge-cancelled" style="font-size:11px;">Cancelled</span>'
+                    : ' <span class="cart-sub-badge" style="font-size:11px;">Subscription</span>')
+                : '';
             return `
             <div class="account-order-item account-order-clickable" data-order-id="${escapeAttr(String(order.id))}">
                 <div class="account-order-top">
@@ -2143,12 +2155,20 @@
             <div class="order-detail-row"><strong>Date:</strong> <span>${escapeHtml(when)}</span></div>
             <div class="order-detail-row"><strong>Status:</strong> <span style="color:${statusColors[st]};font-weight:600;">${escapeHtml(statusLabels[st] || st)}</span></div>
             ${deliveredAt ? `<div class="order-detail-row"><strong>Delivered:</strong> <span>${escapeHtml(deliveredAt)}</span></div>` : ''}
-            ${order.is_subscription ? '<div class="order-detail-row"><strong>Type:</strong> <span>Subscription</span></div>' : ''}
+            ${order.is_subscription ? `<div class="order-detail-row"><strong>Type:</strong> <span>Subscription${order.subscription_period ? ' (' + escapeHtml(order.subscription_period) + ')' : ''}</span></div>` : ''}
+            ${order.is_subscription ? `<div class="order-detail-row"><strong>Subscription:</strong> <span style="color:${order.subscription_status === 'active' ? '#22c55e' : '#ef4444'};font-weight:600;">${order.subscription_status === 'active' ? 'Active' : 'Cancelled'}</span></div>` : ''}
             <div class="order-detail-row"><strong>Total:</strong> <span>$${formatMoney(order.subtotal || 0)}</span></div>
             <h4 style="margin:16px 0 8px;color:var(--text-primary);">Items</h4>
             ${itemsHtml}
             ${order.delivery_description ? `<h4 style="margin:16px 0 8px;color:var(--text-primary);">Delivery Info</h4><div class="order-detail-description">${escapeHtml(order.delivery_description)}</div>` : ''}
+            ${order.is_subscription && order.subscription_status === 'active' && order.stripe_subscription_id ? `<button type="button" class="cancel-subscription-btn" id="cancelSubBtn" data-order-id="${escapeAttr(String(order.id))}">Cancel Subscription</button>` : ''}
         `;
+
+        // Bind cancel button if present
+        const cancelBtn = body.querySelector('#cancelSubBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => handleCancelSubscription(cancelBtn.dataset.orderId));
+        }
     }
 
     // Order detail close
@@ -2158,6 +2178,38 @@
             if (overlay) overlay.style.display = 'none';
         }
     });
+
+    async function handleCancelSubscription(orderId) {
+        const cfg = window.KEYZES_CONFIG || {};
+        const url = cfg.cancelSubscriptionFunctionUrl;
+        if (!url || !currentCustomer) return;
+
+        if (!confirm('Are you sure you want to cancel this subscription? This cannot be undone.')) return;
+
+        const btn = document.getElementById('cancelSubBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Cancelling...'; }
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId, customerEmail: currentCustomer.email }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to cancel');
+
+            // Update cached order
+            const order = cachedRemoteOrders.find(o => o.id === orderId);
+            if (order) order.subscription_status = 'cancelled';
+
+            // Re-render the detail and the list
+            openOrderDetail(orderId);
+            renderOrdersForCurrentCustomer();
+        } catch (err) {
+            alert('Error cancelling subscription: ' + (err.message || err));
+            if (btn) { btn.disabled = false; btn.textContent = 'Cancel Subscription'; }
+        }
+    }
 
     // Order tab filtering
     document.addEventListener('click', e => {

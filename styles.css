@@ -4833,6 +4833,27 @@ body.auth-open {
     line-height: 1.6;
 }
 
+.cancel-subscription-btn {
+    display: block;
+    width: 100%;
+    margin-top: 18px;
+    padding: 10px 16px;
+    background: #ef4444;
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.cancel-subscription-btn:hover { background: #dc2626; }
+.cancel-subscription-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.sub-badge-cancelled {
+    background: #ef4444 !important;
+}
+
 /* Admin order detail overlay */
 .admin-order-detail-overlay {
     position: fixed;
