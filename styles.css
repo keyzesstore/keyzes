@@ -632,6 +632,11 @@ a {
 }
 
 /* === Products Area === */
+.products-area {
+    min-width: 0;
+    overflow: hidden;
+}
+
 .products-header {
     display: flex;
     justify-content: space-between;
@@ -713,6 +718,7 @@ a {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 20px;
+    min-width: 0;
 }
 
 /* Pagination */
