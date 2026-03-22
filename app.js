@@ -316,16 +316,15 @@
     }
 
     function getStripePaymentMethodTypes() {
-        const defaults = ['card', 'link'];
         const configured = APP_CONFIG.stripePaymentMethodTypes;
-        if (!Array.isArray(configured)) return defaults;
+        if (!Array.isArray(configured)) return null;
 
         const cleaned = configured
             .map(method => String(method || '').trim().toLowerCase())
             .filter(Boolean);
 
         const unique = [...new Set(cleaned)];
-        if (!unique.length) return defaults;
+        if (!unique.length) return null;
         if (!unique.includes('card')) unique.unshift('card');
         return unique;
     }
@@ -662,6 +661,8 @@
         });
 
         const returnBase = window.location.origin + window.location.pathname;
+        const paymentMethodTypes = getStripePaymentMethodTypes();
+
         const payload = {
             customerEmail: customer.email,
             customerName: customer.name || '',
@@ -670,10 +671,13 @@
             discountAmount: Number(pricing.discountAmount || 0),
             total: Number(pricing.total || 0),
             affiliateCode: pricing.activeRefCode || '',
-            paymentMethodTypes: getStripePaymentMethodTypes(),
             successUrl: returnBase + '?stripe=success',
             cancelUrl: returnBase + '?stripe=cancel',
         };
+
+        if (paymentMethodTypes && paymentMethodTypes.length) {
+            payload.paymentMethodTypes = paymentMethodTypes;
+        }
 
         let authHeader = 'Bearer ' + APP_CONFIG.supabaseAnonKey;
         if (authReady()) {

@@ -16,9 +16,10 @@ window.KEYZES_CONFIG = {
     stripeCheckoutFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/create-stripe-checkout',
 
     // Optional: hosted checkout payment method types.
-    // Keep "card" for Apple Pay / Google Pay wallet support.
+    // Leave unset to let Stripe decide automatically from Dashboard settings.
+    // If you set a list manually, keep "card" for Apple Pay / Google Pay wallets.
     // Example: ['card', 'link', 'cashapp', 'klarna', 'paypal']
-    stripePaymentMethodTypes: ['card', 'link'],
+    // stripePaymentMethodTypes: ['card', 'link'],
 
     // Optional: endpoint that deletes the authenticated customer account
     accountDeleteFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/delete-account'

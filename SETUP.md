@@ -102,7 +102,8 @@ Edit `config.js` and set:
 - `authRedirectUrl`: your production site URL (used in email verification links), e.g. `https://keyzes.com`
 - `orderEmailFunctionUrl`: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-order-email`
 - `stripeCheckoutFunctionUrl`: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/create-stripe-checkout`
-- `stripePaymentMethodTypes` (optional): list of enabled methods, for example `['card', 'link', 'cashapp', 'klarna', 'paypal']`
+- `stripePaymentMethodTypes` (optional): list of enabled methods, for example `['card', 'link', 'cashapp', 'klarna', 'paypal']`.
+   If omitted, Stripe will use automatic payment method selection from your Dashboard.
 - `accountDeleteFunctionUrl` (optional): `https://YOUR_PROJECT_REF.supabase.co/functions/v1/delete-account`
 
 Important:
@@ -188,9 +189,10 @@ To make verification emails look better:
 - Calls `send-order-email` function in the non-Stripe fallback flow.
 
 Apple Pay / Google Pay notes:
-- Keep `card` inside `stripePaymentMethodTypes` (wallets are presented under the card flow).
+- If you set `stripePaymentMethodTypes`, keep `card` in the list (wallets are presented under card flow).
 - In Stripe dashboard, enable Apple Pay and verify your domain (`keyzes.com` and `www.keyzes.com`) for live mode.
 - Google Pay appears automatically on supported browsers/devices when card payments are enabled.
+- Apple Pay button appears only on eligible Apple devices/browsers (Safari + Wallet configured).
 
 ## 10.1) Admin + account behavior
 

@@ -16,7 +16,6 @@ function moneyToCents(value: unknown) {
 }
 
 function sanitizePaymentMethodTypes(value: unknown) {
-    const defaults = ['card', 'link'];
     const allowed = new Set([
         'acss_debit',
         'affirm',
@@ -50,14 +49,14 @@ function sanitizePaymentMethodTypes(value: unknown) {
         'wechat_pay',
     ]);
 
-    if (!Array.isArray(value)) return defaults;
+    if (!Array.isArray(value)) return null;
 
     const cleaned = value
         .map((method) => String(method || '').trim().toLowerCase())
         .filter((method) => allowed.has(method));
 
     const unique = [...new Set(cleaned)];
-    if (!unique.length) return defaults;
+    if (!unique.length) return null;
     if (!unique.includes('card')) unique.unshift('card');
     return unique;
 }
@@ -137,11 +136,10 @@ Deno.serve(async (req) => {
             );
         }
 
-        const session = await stripe.checkout.sessions.create({
+        const sessionPayload: Record<string, unknown> = {
             mode: 'payment',
             customer_email: customerEmail,
             line_items: lineItems,
-            payment_method_types: paymentMethodTypes,
             success_url: successUrl,
             cancel_url: cancelUrl,
             metadata: {
@@ -150,7 +148,13 @@ Deno.serve(async (req) => {
                 affiliate_code: affiliateCode,
                 discount_amount: String(discountAmount || 0),
             },
-        });
+        };
+
+        if (paymentMethodTypes && paymentMethodTypes.length) {
+            sessionPayload.payment_method_types = paymentMethodTypes;
+        }
+
+        const session = await stripe.checkout.sessions.create(sessionPayload);
 
         if (!session.url) {
             return Response.json(
