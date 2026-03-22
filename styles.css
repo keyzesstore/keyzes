@@ -1510,7 +1510,8 @@ a {
     }
 
     .logo-img {
-        height: 130px;
+        height: 150px;
+        margin-top: 8px;
     }
 
     .search-wrapper {
