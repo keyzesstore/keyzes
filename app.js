@@ -3078,6 +3078,7 @@
                 }
                 products[idx] = updatedProduct;
                 saveJSON(STORAGE_PRODUCTS, products);
+                broadcastLocalCatalogSync();
                 showToast('Product updated successfully.', 'success');
             }
         } else {
@@ -3092,6 +3093,7 @@
             }
             products.push(data);
             saveJSON(STORAGE_PRODUCTS, products);
+            broadcastLocalCatalogSync();
             showToast('Product added successfully.', 'success');
         }
 
@@ -3129,6 +3131,7 @@
                 }
                 products = nextProducts;
                 saveJSON(STORAGE_PRODUCTS, products);
+                broadcastLocalCatalogSync();
                 showToast('Product deleted.', 'info');
                 renderProducts();
                 // Re-render current section
@@ -3186,6 +3189,7 @@
                 await replaceCloudCatalog(imported);
                 products = imported;
                 saveJSON(STORAGE_PRODUCTS, products);
+                broadcastLocalCatalogSync();
                 showToast(`Imported ${imported.length} products.`, 'success');
                 renderProducts();
                 renderAdminProducts();
@@ -3214,6 +3218,7 @@
             }
             products = [];
             saveJSON(STORAGE_PRODUCTS, products);
+            broadcastLocalCatalogSync();
             renderProducts();
             renderAdminProducts();
             renderDashboard();
@@ -3333,6 +3338,7 @@
     let catalogRealtimeChannel = null;
     let catalogRefreshTimer = null;
     let catalogPollingTimer = null;
+    let catalogBroadcastChannel = null;
 
     function scheduleCatalogRefresh() {
         if (catalogRefreshTimer) clearTimeout(catalogRefreshTimer);
@@ -3370,6 +3376,48 @@
         }, 1200);
     }
 
+    function renderCatalogEverywhere() {
+        renderProducts();
+        if (adminView.style.display !== 'none') {
+            renderAdminProducts();
+            renderDashboard();
+        }
+    }
+
+    function setupLocalCatalogSync() {
+        window.addEventListener('storage', (event) => {
+            if (event.key !== STORAGE_PRODUCTS || !event.newValue) return;
+            try {
+                const incoming = JSON.parse(event.newValue);
+                if (!Array.isArray(incoming)) return;
+                products = incoming;
+                renderCatalogEverywhere();
+            } catch {
+                // Ignore malformed data from old tabs.
+            }
+        });
+
+        if (typeof window.BroadcastChannel === 'function') {
+            catalogBroadcastChannel = new BroadcastChannel('keyzes-catalog-sync');
+            catalogBroadcastChannel.onmessage = (event) => {
+                const incoming = event && event.data;
+                if (!Array.isArray(incoming)) return;
+                products = incoming;
+                saveJSON(STORAGE_PRODUCTS, products);
+                renderCatalogEverywhere();
+            };
+        }
+    }
+
+    function broadcastLocalCatalogSync() {
+        if (!catalogBroadcastChannel) return;
+        try {
+            catalogBroadcastChannel.postMessage(products);
+        } catch {
+            // Ignore broadcast failures.
+        }
+    }
+
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             refreshCatalogFromCloudAndRender();
@@ -3383,6 +3431,7 @@
     (async function initializeApp() {
         await loadSharedProductCatalog();
         renderProducts();
+        setupLocalCatalogSync();
         startCatalogPollingFallback();
         subscribeToCatalogRealtime();
         initializeCustomerAuth();
