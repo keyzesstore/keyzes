@@ -349,12 +349,53 @@
         if (!stripeStatus) return;
 
         if (stripeStatus === 'success') {
+            // Check for pending checkout groups (split billing period sessions)
+            const pending = loadJSON('keyzes_pending_checkout', null);
+            if (pending && pending.length > 0) {
+                // More groups to checkout — process next group
+                const nextGroup = pending.shift();
+                saveJSON('keyzes_pending_checkout', pending.length ? pending : null);
+                // Put next group items back as the cart and auto-checkout
+                cart = nextGroup;
+                saveJSON(STORAGE_CART, cart);
+                updateCartBadge();
+
+                // Clean URL first
+                params.delete('stripe');
+                const cleanSearch = params.toString();
+                const cleanUrl = window.location.origin + window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '');
+                window.history.replaceState({}, document.title, cleanUrl);
+
+                showToast('First payment done! Processing next billing group...', 'info');
+                // Auto-trigger checkout for next group after brief delay
+                setTimeout(async () => {
+                    if (!currentCustomer) return;
+                    const pricing = getCheckoutPricing(currentCustomer, cart);
+                    const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
+                    if (stripeResult.ok) {
+                        window.location.href = stripeResult.url;
+                    } else {
+                        showToast('Could not start next checkout: ' + stripeResult.reason + '. Items are in your cart.', 'error');
+                    }
+                }, 1500);
+                return;
+            }
+
             cart = [];
             saveJSON(STORAGE_CART, cart);
+            localStorage.removeItem('keyzes_pending_checkout');
             updateCartBadge();
             if (typeof renderCart === 'function') renderCart();
             showToast('Payment successful. Thank you for your order!', 'success');
         } else if (stripeStatus === 'cancel') {
+            // On cancel, restore any pending groups back into cart
+            const pending = loadJSON('keyzes_pending_checkout', null);
+            if (pending && pending.length > 0) {
+                pending.forEach(group => { cart.push(...group); });
+                saveJSON(STORAGE_CART, cart);
+                localStorage.removeItem('keyzes_pending_checkout');
+                updateCartBadge();
+            }
             showToast('Stripe checkout was canceled.', 'info');
         }
 
@@ -1406,45 +1447,46 @@
 
             // Stripe only supports one recurring interval per session.
             // If there are auto-renew items with different billing periods,
-            // keep only the most common period as recurring and convert the rest to one-time.
-            const renewItems = cart.filter(i => i.autoRenew);
-            if (renewItems.length > 1) {
-                const periodCounts = {};
-                renewItems.forEach(i => {
-                    const p = products.find(pr => pr.id === i.id);
-                    const period = i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
-                    periodCounts[period] = (periodCounts[period] || 0) + 1;
-                });
-                const uniquePeriods = Object.keys(periodCounts);
-                if (uniquePeriods.length > 1) {
-                    // Keep the most common period, convert others to one-time
-                    const keepPeriod = uniquePeriods.sort((a, b) => periodCounts[b] - periodCounts[a])[0];
-                    const converted = [];
-                    cart.forEach(i => {
-                        if (i.autoRenew) {
-                            const p = products.find(pr => pr.id === i.id);
-                            const period = i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
-                            if (period !== keepPeriod) {
-                                i.autoRenew = false;
-                                converted.push(p ? p.title : 'Item');
-                            }
-                        }
+            // split into separate checkout sessions processed sequentially.
+            if (getStripeCheckoutFunctionUrl()) {
+                const renewItems = cart.filter(i => i.autoRenew);
+                let checkoutCart = cart;
+
+                if (renewItems.length > 1) {
+                    const periodGroups = {};
+                    renewItems.forEach(i => {
+                        const p = products.find(pr => pr.id === i.id);
+                        const period = i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
+                        if (!periodGroups[period]) periodGroups[period] = [];
+                        periodGroups[period].push(i);
                     });
-                    if (converted.length) {
-                        showToast(converted.join(', ') + ' converted to one-time purchase (different billing period). You can buy separately for auto-renewal.', 'info');
-                        saveJSON(STORAGE_CART, cart);
-                        renderCart();
+                    const uniquePeriods = Object.keys(periodGroups);
+
+                    if (uniquePeriods.length > 1) {
+                        // Multiple billing periods — split checkout
+                        const onetimeItems = cart.filter(i => !i.autoRenew);
+                        const firstPeriod = uniquePeriods[0];
+                        // First group: one-time items + first period's subscription items
+                        checkoutCart = [...onetimeItems, ...periodGroups[firstPeriod]];
+                        // Remaining groups: store for sequential checkout after first success
+                        const remainingGroups = uniquePeriods.slice(1).map(p => periodGroups[p]);
+                        saveJSON('keyzes_pending_checkout', remainingGroups);
+
+                        const periodLabels = { '1_month': 'Monthly', '3_months': '3-Month', '6_months': '6-Month', '1_year': 'Yearly' };
+                        const totalGroups = uniquePeriods.length;
+                        showToast(`Splitting into ${totalGroups} checkouts (different billing periods). Starting with ${periodLabels[firstPeriod] || firstPeriod} items...`, 'info');
                     }
                 }
-            }
 
-            if (getStripeCheckoutFunctionUrl()) {
-                const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
+                const checkoutPricing = getCheckoutPricing(currentCustomer, checkoutCart);
+                const stripeResult = await createStripeCheckoutSession(currentCustomer, checkoutCart, checkoutPricing);
                 if (!stripeResult.ok) {
+                    localStorage.removeItem('keyzes_pending_checkout');
                     showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
                     return;
                 }
 
+                // Save remaining cart items (from other period groups) — they'll be checked out on return
                 window.location.href = stripeResult.url;
                 return;
             }
