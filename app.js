@@ -305,6 +305,16 @@
         return typeof value === 'string' && value.trim() && !value.includes('YOUR_');
     }
 
+    function getStripeCheckoutFunctionUrl() {
+        if (isConfigured(APP_CONFIG.stripeCheckoutFunctionUrl)) {
+            return APP_CONFIG.stripeCheckoutFunctionUrl.trim();
+        }
+        if (isConfigured(APP_CONFIG.supabaseUrl)) {
+            return APP_CONFIG.supabaseUrl.replace(/\/$/, '') + '/functions/v1/create-stripe-checkout';
+        }
+        return '';
+    }
+
     function getAuthRedirectUrl() {
         if (isConfigured(APP_CONFIG.authRedirectUrl)) {
             return APP_CONFIG.authRedirectUrl.trim();
@@ -619,7 +629,8 @@
     }
 
     async function createStripeCheckoutSession(customer, cartItems, pricing) {
-        if (!isConfigured(APP_CONFIG.stripeCheckoutFunctionUrl)) {
+        const stripeCheckoutFunctionUrl = getStripeCheckoutFunctionUrl();
+        if (!stripeCheckoutFunctionUrl) {
             return { ok: false, reason: 'Stripe checkout function is not configured yet.' };
         }
 
@@ -655,7 +666,7 @@
             if (token) authHeader = 'Bearer ' + token;
         }
 
-        const response = await fetch(APP_CONFIG.stripeCheckoutFunctionUrl, {
+        const response = await fetch(stripeCheckoutFunctionUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1289,7 +1300,7 @@
         const pricing = getCheckoutPricing(currentCustomer, cart);
         const cartSnapshot = cart.map(item => ({ ...item }));
 
-        if (isConfigured(APP_CONFIG.stripeCheckoutFunctionUrl)) {
+        if (getStripeCheckoutFunctionUrl()) {
             const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
             checkoutBtn.textContent = originalLabel;
             updateCheckoutState();

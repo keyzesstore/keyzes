@@ -13,7 +13,7 @@ window.KEYZES_CONFIG = {
 
     // Supabase Edge Function URL (optional, Stripe hosted checkout)
     // Example: https://YOUR_PROJECT_REF.supabase.co/functions/v1/create-stripe-checkout
-    stripeCheckoutFunctionUrl: 'YOUR_STRIPE_CHECKOUT_FUNCTION_URL',
+    stripeCheckoutFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/create-stripe-checkout',
 
     // Optional: endpoint that deletes the authenticated customer account
     accountDeleteFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/delete-account'
