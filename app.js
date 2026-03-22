@@ -666,24 +666,37 @@
             if (token) authHeader = 'Bearer ' + token;
         }
 
-        const response = await fetch(stripeCheckoutFunctionUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: authHeader,
-                apikey: APP_CONFIG.supabaseAnonKey,
-            },
-            body: JSON.stringify(payload),
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            return { ok: false, reason: result.error || 'Could not start Stripe checkout.' };
+        try {
+            const response = await fetch(stripeCheckoutFunctionUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: authHeader,
+                    apikey: APP_CONFIG.supabaseAnonKey,
+                },
+                body: JSON.stringify(payload),
+                signal: controller.signal,
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                return { ok: false, reason: result.error || 'Could not start Stripe checkout.' };
+            }
+            if (!result.url) {
+                return { ok: false, reason: 'Stripe did not return a checkout URL.' };
+            }
+            return { ok: true, url: result.url };
+        } catch (err) {
+            if (err && err.name === 'AbortError') {
+                return { ok: false, reason: 'Stripe checkout request timed out. Check function deployment/secrets.' };
+            }
+            return { ok: false, reason: 'Network error contacting Stripe checkout function.' };
+        } finally {
+            clearTimeout(timeoutId);
         }
-        if (!result.url) {
-            return { ok: false, reason: 'Stripe did not return a checkout URL.' };
-        }
-        return { ok: true, url: result.url };
     }
 
     // ---- State ----
@@ -1297,40 +1310,41 @@
         checkoutBtn.disabled = true;
         checkoutBtn.textContent = 'Processing...';
 
-        const pricing = getCheckoutPricing(currentCustomer, cart);
-        const cartSnapshot = cart.map(item => ({ ...item }));
+        try {
+            const pricing = getCheckoutPricing(currentCustomer, cart);
+            const cartSnapshot = cart.map(item => ({ ...item }));
 
-        if (getStripeCheckoutFunctionUrl()) {
-            const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
-            checkoutBtn.textContent = originalLabel;
-            updateCheckoutState();
+            if (getStripeCheckoutFunctionUrl()) {
+                const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
+                if (!stripeResult.ok) {
+                    showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
+                    return;
+                }
 
-            if (!stripeResult.ok) {
-                showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
+                window.location.href = stripeResult.url;
                 return;
             }
 
-            window.location.href = stripeResult.url;
-            return;
+            const result = await createRemoteOrder(currentCustomer.email, cart, pricing);
+            if (!result.ok) {
+                showToast('Checkout setup is incomplete: ' + result.reason, 'error');
+                return;
+            }
+
+            recordOrderForCustomer(currentCustomer, cartSnapshot, pricing, result.orderId);
+            applyAffiliateCommission(currentCustomer, pricing, result.orderId);
+
+            cart = [];
+            saveJSON(STORAGE_CART, cart);
+            renderCart();
+            updateCartBadge();
+            showToast('Order placed successfully. Order ID: ' + result.orderId, 'success');
+        } catch {
+            showToast('Checkout failed unexpectedly. Please try again.', 'error');
+        } finally {
+            checkoutBtn.textContent = originalLabel;
+            updateCheckoutState();
         }
-
-        const result = await createRemoteOrder(currentCustomer.email, cart, pricing);
-        checkoutBtn.textContent = originalLabel;
-        updateCheckoutState();
-
-        if (!result.ok) {
-            showToast('Checkout setup is incomplete: ' + result.reason, 'error');
-            return;
-        }
-
-        recordOrderForCustomer(currentCustomer, cartSnapshot, pricing, result.orderId);
-        applyAffiliateCommission(currentCustomer, pricing, result.orderId);
-
-        cart = [];
-        saveJSON(STORAGE_CART, cart);
-        renderCart();
-        updateCartBadge();
-        showToast('Order placed successfully. Order ID: ' + result.orderId, 'success');
     });
 
     // Initialize cart badge
