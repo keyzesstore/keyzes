@@ -956,6 +956,9 @@
                 variantIdx,
                 closeModalOnSuccess: !!options.closeModalOnSuccess,
             };
+            if (options.source === 'modal' || productModal.classList.contains('open')) {
+                closeProductModal();
+            }
             openCustomerAuth('login', 'Log in or create an account to add items to your cart.');
             return false;
         }
