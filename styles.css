@@ -3979,14 +3979,19 @@ a {
 
     /* --- Auth Modal --- */
     .customer-auth-overlay {
-        padding: 10px;
+        padding: 0;
+        align-items: flex-start;
     }
 
     .customer-auth-modal {
         width: 100%;
         max-width: 100%;
-        padding: 24px 16px 20px;
-        border-radius: 18px;
+        max-height: 100vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        padding: 16px 14px 20px;
+        border-radius: 0;
+        animation: none;
     }
 
     .customer-auth-layout {
@@ -3995,35 +4000,7 @@ a {
     }
 
     .customer-auth-art {
-        padding: 20px 16px;
-        margin-bottom: 14px;
-        border-radius: 14px;
-    }
-
-    .customer-auth-art h3 {
-        font-size: 22px;
-    }
-
-    .customer-auth-art p {
-        font-size: 13px;
-    }
-
-    .customer-auth-art-cards {
-        gap: 8px;
-        margin-top: 18px;
-    }
-
-    .customer-auth-art-card {
-        padding: 10px 12px;
-        border-radius: 12px;
-    }
-
-    .customer-auth-art-card strong {
-        font-size: 13px;
-    }
-
-    .customer-auth-art-card span {
-        font-size: 12px;
+        display: none;
     }
 
     .customer-auth-panel {
@@ -4031,11 +4008,11 @@ a {
     }
 
     .customer-auth-header {
-        margin-bottom: 14px;
+        margin-bottom: 12px;
     }
 
     .customer-auth-header h2 {
-        font-size: 24px;
+        font-size: 22px;
     }
 
     .customer-auth-header p {
@@ -4045,26 +4022,30 @@ a {
     .customer-auth-meta {
         gap: 6px;
         justify-content: center;
-        margin-bottom: 14px;
+        margin-bottom: 12px;
     }
 
     .customer-auth-pill {
-        font-size: 10px;
-        padding: 5px 10px;
+        font-size: 9px;
+        padding: 4px 8px;
         letter-spacing: 0.06em;
     }
 
     .customer-auth-tabs {
-        gap: 6px;
-        padding: 5px;
-        border-radius: 14px;
-        margin-bottom: 18px;
+        gap: 4px;
+        padding: 4px;
+        border-radius: 12px;
+        margin-bottom: 16px;
     }
 
     .customer-auth-tab {
         padding: 10px 12px;
         font-size: 13px;
-        border-radius: 11px;
+        border-radius: 10px;
+    }
+
+    .customer-auth-form {
+        gap: 12px;
     }
 
     .customer-auth-form input {
@@ -4073,22 +4054,34 @@ a {
         border-radius: 12px;
     }
 
+    .customer-auth-form label {
+        font-size: 12px;
+        margin-bottom: 6px;
+    }
+
     .customer-auth-form .admin-login-btn {
         padding: 13px;
         font-size: 15px;
         border-radius: 12px;
     }
 
-    .customer-auth-form {
-        gap: 14px;
+    .customer-auth-close {
+        top: 8px;
+        right: 8px;
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
     }
 
-    .customer-auth-close {
-        top: 10px;
-        right: 10px;
-        width: 34px;
-        height: 34px;
-        font-size: 20px;
+    .customer-auth-link-row {
+        margin-top: -2px;
+        margin-bottom: 4px;
+    }
+
+    .customer-secondary-btn {
+        margin-top: 6px;
+        padding: 10px 12px;
+        font-size: 13px;
     }
 
     /* --- Cart auth --- */
