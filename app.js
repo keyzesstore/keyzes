@@ -40,6 +40,8 @@
         return !!supabaseClient;
     }
 
+    let lastCatalogFingerprint = '';
+
     async function fetchProductCatalogFromCloud() {
         if (!isSupabaseConfigured()) return null;
         const { data, error } = await supabaseClient
@@ -48,23 +50,32 @@
             .order('updated_at', { ascending: false });
 
         if (error) throw error;
-        const mapped = (data || [])
+        const rows = data || [];
+        const mapped = rows
             .map(row => row && row.data)
             .filter(item => item && item.id);
-        return mapped;
+        const fingerprint = rows
+            .map(row => String(row.id) + ':' + String(row.updated_at || ''))
+            .join('|');
+        return { items: mapped, fingerprint };
     }
 
     async function loadSharedProductCatalog() {
         if (!isSupabaseConfigured()) return;
         try {
-            const cloudProducts = await fetchProductCatalogFromCloud();
-            if (Array.isArray(cloudProducts)) {
-                products = cloudProducts;
+            const payload = await fetchProductCatalogFromCloud();
+            if (payload && Array.isArray(payload.items)) {
+                const changed = payload.fingerprint !== lastCatalogFingerprint;
+                lastCatalogFingerprint = payload.fingerprint;
+                if (!changed) return false;
+                products = payload.items;
                 saveJSON(STORAGE_PRODUCTS, products);
+                return true;
             }
         } catch (err) {
             console.warn('[Catalog] Failed to load shared catalog:', err && err.message ? err.message : err);
         }
+        return false;
     }
 
     async function upsertProductToCloud(product) {
@@ -3299,9 +3310,19 @@
     //  INIT
     // ===========================
 
+    let catalogRefreshInFlight = false;
+
     async function refreshCatalogFromCloudAndRender() {
         if (!isSupabaseConfigured()) return;
-        await loadSharedProductCatalog();
+        if (catalogRefreshInFlight) return;
+        catalogRefreshInFlight = true;
+        let changed = false;
+        try {
+            changed = await loadSharedProductCatalog();
+        } finally {
+            catalogRefreshInFlight = false;
+        }
+        if (!changed) return;
         renderProducts();
         if (adminView.style.display !== 'none') {
             renderAdminProducts();
@@ -3311,6 +3332,7 @@
 
     let catalogRealtimeChannel = null;
     let catalogRefreshTimer = null;
+    let catalogPollingTimer = null;
 
     function scheduleCatalogRefresh() {
         if (catalogRefreshTimer) clearTimeout(catalogRefreshTimer);
@@ -3335,6 +3357,15 @@
             .subscribe();
     }
 
+    function startCatalogPollingFallback() {
+        if (!isSupabaseConfigured()) return;
+        if (catalogPollingTimer) return;
+        catalogPollingTimer = setInterval(() => {
+            if (document.visibilityState !== 'visible') return;
+            refreshCatalogFromCloudAndRender();
+        }, 1200);
+    }
+
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             refreshCatalogFromCloudAndRender();
@@ -3349,6 +3380,7 @@
         await loadSharedProductCatalog();
         renderProducts();
         subscribeToCatalogRealtime();
+        startCatalogPollingFallback();
         initializeCustomerAuth();
     })();
 
