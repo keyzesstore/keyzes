@@ -1578,6 +1578,86 @@ a {
     }
 }
 
+@media (min-width: 640px) and (max-width: 768px) {
+    .container {
+        padding: 0 16px;
+    }
+
+    .header-inner {
+        height: 72px;
+        gap: 10px;
+    }
+
+    .logo-img {
+        height: 96px;
+    }
+
+    .search-wrapper {
+        display: block;
+        flex: 1 1 150px;
+        max-width: 180px;
+        min-width: 130px;
+    }
+
+    .search-input {
+        padding: 8px 12px 8px 36px;
+        font-size: 13px;
+    }
+
+    .search-icon {
+        left: 12px;
+        width: 16px;
+        height: 16px;
+    }
+
+    .nav-links {
+        display: flex;
+        gap: 6px;
+        margin-left: auto;
+        min-width: 0;
+    }
+
+    .nav-link {
+        padding: 7px 10px;
+        font-size: 13px;
+        gap: 5px;
+        white-space: nowrap;
+    }
+
+    .customer-auth-nav {
+        margin-left: 0;
+    }
+
+    .customer-guest-actions,
+    .customer-session-panel {
+        gap: 6px;
+    }
+
+    .nav-auth-btn {
+        padding: 7px 10px;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .customer-session-account-btn {
+        gap: 8px;
+        padding: 5px 8px;
+        max-width: 124px;
+    }
+
+    .customer-session-name {
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .mobile-menu-btn,
+    .mobile-nav {
+        display: none !important;
+    }
+}
+
 @media (max-width: 480px) {
 
     .header-inner {
