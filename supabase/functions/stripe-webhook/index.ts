@@ -42,6 +42,8 @@ Deno.serve(async (req) => {
     const session = event.data.object;
     const stripeSessionId = String(session.id || '').trim();
     const customerEmail = String(session.customer_details?.email || session.customer_email || '').trim().toLowerCase();
+    const isSubscription = session.mode === 'subscription' || session.metadata?.is_subscription === 'true';
+    const subscriptionPeriod = String(session.metadata?.subscription_period || '').trim();
 
     if (!stripeSessionId || !customerEmail) {
         return Response.json({ error: 'Missing stripe session id or customer email' }, { status: 400 });
@@ -77,9 +79,12 @@ Deno.serve(async (req) => {
         .insert({
             customer_email: customerEmail,
             status: 'paid',
+            delivery_status: 'processing',
             subtotal,
             currency: String((session.currency || 'usd')).toUpperCase(),
             source: orderSource,
+            is_subscription: isSubscription,
+            subscription_period: subscriptionPeriod || null,
         })
         .select('id')
         .single();

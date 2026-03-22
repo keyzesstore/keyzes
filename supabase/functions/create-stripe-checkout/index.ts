@@ -98,6 +98,17 @@ Deno.serve(async (req) => {
             );
         }
 
+        // Determine if this is a subscription checkout
+        const hasSubscription = items.some((i: Record<string, unknown>) => i.subscriptionType === 'subscription');
+        const checkoutMode = hasSubscription ? 'subscription' : 'payment';
+
+        const periodToRecurring: Record<string, { interval: string; interval_count: number }> = {
+            '1_month': { interval: 'month', interval_count: 1 },
+            '3_months': { interval: 'month', interval_count: 3 },
+            '6_months': { interval: 'month', interval_count: 6 },
+            '1_year': { interval: 'year', interval_count: 1 },
+        };
+
         const stripe = new Stripe(stripeSecretKey, {
             apiVersion: '2024-06-20',
         });
@@ -109,22 +120,34 @@ Deno.serve(async (req) => {
                 const variantName = String(item.variantName || '').trim();
                 const productId = String(item.productId || '').trim();
                 const unitAmount = moneyToCents(item.unitPrice);
+                const subType = String(item.subscriptionType || 'onetime');
+                const subPeriod = String(item.subscriptionPeriod || '1_month');
 
                 if (!title || unitAmount <= 0) return null;
 
-                return {
-                    quantity: qty,
-                    price_data: {
-                        currency: 'usd',
-                        unit_amount: unitAmount,
-                        product_data: {
-                            name: variantName ? `${title} (${variantName})` : title,
-                            metadata: {
-                                product_id: productId,
-                                variant_name: variantName,
-                            },
+                const priceData: Record<string, unknown> = {
+                    currency: 'usd',
+                    unit_amount: unitAmount,
+                    product_data: {
+                        name: variantName ? `${title} (${variantName})` : title,
+                        metadata: {
+                            product_id: productId,
+                            variant_name: variantName,
                         },
                     },
+                };
+
+                if (subType === 'subscription') {
+                    const rec = periodToRecurring[subPeriod] || { interval: 'month', interval_count: 1 };
+                    priceData.recurring = {
+                        interval: rec.interval,
+                        interval_count: rec.interval_count,
+                    };
+                }
+
+                return {
+                    quantity: qty,
+                    price_data: priceData,
                 };
             })
             .filter(Boolean);
@@ -137,7 +160,7 @@ Deno.serve(async (req) => {
         }
 
         const sessionPayload: Record<string, unknown> = {
-            mode: 'payment',
+            mode: checkoutMode,
             customer_email: customerEmail,
             line_items: lineItems,
             success_url: successUrl,
@@ -147,6 +170,7 @@ Deno.serve(async (req) => {
                 customer_name: customerName,
                 affiliate_code: affiliateCode,
                 discount_amount: String(discountAmount || 0),
+                is_subscription: hasSubscription ? 'true' : 'false',
             },
         };
 

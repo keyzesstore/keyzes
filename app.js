@@ -657,8 +657,14 @@
                 variantName: variant ? variant.name : '',
                 qty: Number(item.qty || 1),
                 unitPrice: Number(getItemPrice(item) || 0),
+                subscriptionType: item.subscriptionType || 'onetime',
+                subscriptionPeriod: item.subscriptionPeriod || '',
             };
         });
+
+        // Check if any items are subscriptions
+        const hasSubscription = checkoutItems.some(i => i.subscriptionType === 'subscription');
+        const allSubscription = checkoutItems.every(i => i.subscriptionType === 'subscription');
 
         const returnBase = window.location.origin + window.location.pathname;
         const paymentMethodTypes = getStripePaymentMethodTypes();
@@ -1157,6 +1163,47 @@
             badgeEl.style.display = 'none';
         }
 
+        // Subscription selector
+        const subSelector = $('#modalSubscriptionSelector');
+        const subPeriodRow = $('#modalSubPeriodRow');
+        const subPeriodOptions = $('#modalSubPeriodOptions');
+        if (p.subscriptionEnabled && p.subscriptionPeriods && p.subscriptionPeriods.length) {
+            subSelector.style.display = '';
+            productModal.dataset.subscriptionType = p.subscriptionDefault ? 'subscription' : 'onetime';
+            subSelector.querySelectorAll('.sub-type-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.subType === productModal.dataset.subscriptionType);
+            });
+
+            const periodLabels = { '1_month': '1 Month', '3_months': '3 Months', '6_months': '6 Months', '1_year': '1 Year' };
+            subPeriodOptions.innerHTML = p.subscriptionPeriods.map((per, i) =>
+                `<button class="variant-btn${i === 0 ? ' active' : ''}" data-sub-period="${per}">${escapeHtml(periodLabels[per] || per)}</button>`
+            ).join('');
+            productModal.dataset.subscriptionPeriod = p.subscriptionPeriods[0];
+
+            subPeriodRow.style.display = productModal.dataset.subscriptionType === 'subscription' ? '' : 'none';
+
+            subSelector.querySelectorAll('.sub-type-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    subSelector.querySelectorAll('.sub-type-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    productModal.dataset.subscriptionType = btn.dataset.subType;
+                    subPeriodRow.style.display = btn.dataset.subType === 'subscription' ? '' : 'none';
+                });
+            });
+
+            subPeriodOptions.querySelectorAll('.variant-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    subPeriodOptions.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    productModal.dataset.subscriptionPeriod = btn.dataset.subPeriod;
+                });
+            });
+        } else {
+            subSelector.style.display = 'none';
+            productModal.dataset.subscriptionType = 'onetime';
+            productModal.dataset.subscriptionPeriod = '';
+        }
+
         productModal.classList.add('open');
         document.body.style.overflow = 'hidden';
     }
@@ -1175,7 +1222,9 @@
     $('#modalAddCart').addEventListener('click', () => {
         const pid = productModal.dataset.currentProductId;
         const variantIdx = parseInt(productModal.dataset.selectedVariant || '0');
-        if (pid) addToCart(pid, variantIdx, { closeModalOnSuccess: true, source: 'modal' });
+        const subscriptionType = productModal.dataset.subscriptionType || 'onetime';
+        const subscriptionPeriod = productModal.dataset.subscriptionPeriod || '';
+        if (pid) addToCart(pid, variantIdx, { closeModalOnSuccess: true, source: 'modal', subscriptionType, subscriptionPeriod });
     });
 
     // ---- Cart Logic ----
@@ -1187,6 +1236,8 @@
             pendingCartAction = {
                 productId,
                 variantIdx,
+                subscriptionType: options.subscriptionType || 'onetime',
+                subscriptionPeriod: options.subscriptionPeriod || '',
                 closeModalOnSuccess: !!options.closeModalOnSuccess,
             };
             if (options.source === 'modal' || productModal.classList.contains('open')) {
@@ -1197,12 +1248,14 @@
         }
 
         const vi = (p.variants && p.variants.length > 1) ? (variantIdx || 0) : 0;
-        const cartKey = productId + '_v' + vi;
+        const subType = options.subscriptionType || 'onetime';
+        const subPeriod = subType === 'subscription' ? (options.subscriptionPeriod || '') : '';
+        const cartKey = productId + '_v' + vi + (subType === 'subscription' ? '_sub_' + subPeriod : '');
         const existing = cart.find(item => item.cartKey === cartKey);
         if (existing) {
             existing.qty++;
         } else {
-            cart.push({ id: productId, cartKey: cartKey, variantIdx: vi, qty: 1 });
+            cart.push({ id: productId, cartKey, variantIdx: vi, qty: 1, subscriptionType: subType, subscriptionPeriod: subPeriod });
         }
         saveJSON(STORAGE_CART, cart);
         updateCartBadge();
@@ -1219,6 +1272,8 @@
         addToCart(queuedAction.productId, queuedAction.variantIdx, {
             skipAuth: true,
             closeModalOnSuccess: queuedAction.closeModalOnSuccess,
+            subscriptionType: queuedAction.subscriptionType,
+            subscriptionPeriod: queuedAction.subscriptionPeriod,
         });
     }
 
@@ -1297,11 +1352,15 @@
             const lineTotal = (unitPrice * item.qty).toFixed(2);
             const variantName = getItemVariantName(item);
             const variantLabel = variantName ? ` &middot; ${escapeHtml(variantName)}` : '';
+            const periodLabels = { '1_month': '/mo', '3_months': '/3mo', '6_months': '/6mo', '1_year': '/yr' };
+            const subLabel = item.subscriptionType === 'subscription'
+                ? ` <span class="cart-sub-badge">Subscription${item.subscriptionPeriod ? ' ' + (periodLabels[item.subscriptionPeriod] || item.subscriptionPeriod) : ''}</span>`
+                : '';
             return `
             <div class="cart-item" data-cart-key="${item.cartKey}">
                 <img class="cart-item-img" src="${escapeAttr(imgSrc)}" alt="${escapeAttr(p.title)}">
                 <div class="cart-item-info">
-                    <div class="cart-item-title">${escapeHtml(p.title)}</div>
+                    <div class="cart-item-title">${escapeHtml(p.title)}${subLabel}</div>
                     <div class="cart-item-category">${categoryLabel(p.category)}${variantLabel} &middot; ${platformLabel(p.platform)}</div>
                 </div>
                 <div class="cart-item-qty">
@@ -1363,6 +1422,14 @@
         try {
             const pricing = getCheckoutPricing(currentCustomer, cart);
             const cartSnapshot = cart.map(item => ({ ...item }));
+
+            // Block mixed carts (Stripe can't do payment + subscription in one session)
+            const hasSub = cart.some(i => i.subscriptionType === 'subscription');
+            const hasOnetime = cart.some(i => i.subscriptionType !== 'subscription');
+            if (hasSub && hasOnetime) {
+                showToast('You cannot mix subscription and one-time items in one checkout. Please separate them.', 'error');
+                return;
+            }
 
             if (getStripeCheckoutFunctionUrl()) {
                 const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
@@ -1867,33 +1934,163 @@
         affiliateChartBars.innerHTML = `<svg viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" aria-label="Affiliate earnings chart">${svgCandles}</svg>`;
     }
 
-    function renderOrdersForCurrentCustomer() {
+    let currentOrderFilter = 'all';
+    let cachedRemoteOrders = [];
+
+    async function fetchOrdersFromCloud(email) {
+        if (!isSupabaseConfigured()) return [];
+        try {
+            const { data, error } = await supabaseClient
+                .from('orders')
+                .select('id, customer_email, status, delivery_status, delivery_description, subtotal, currency, is_subscription, subscription_period, created_at, delivered_at')
+                .eq('customer_email', email.toLowerCase())
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data || [];
+        } catch { return []; }
+    }
+
+    async function fetchOrderItems(orderId) {
+        if (!isSupabaseConfigured()) return [];
+        try {
+            const { data, error } = await supabaseClient
+                .from('order_items')
+                .select('*')
+                .eq('order_id', orderId);
+            if (error) throw error;
+            return data || [];
+        } catch { return []; }
+    }
+
+    async function renderOrdersForCurrentCustomer() {
         if (!customerOrdersList || !currentCustomer) return;
-        const orders = getCustomerOrders(currentCustomer.email);
+
+        customerOrdersList.innerHTML = '<p class="settings-hint" style="margin:0;">Loading orders...</p>';
+
+        // Try cloud first, then fallback to local
+        let orders = [];
+        if (isSupabaseConfigured()) {
+            orders = await fetchOrdersFromCloud(currentCustomer.email);
+            cachedRemoteOrders = orders;
+        }
         if (!orders.length) {
-            customerOrdersList.innerHTML = '<p class="settings-hint" style="margin:0;">No orders yet.</p>';
+            const localOrders = getCustomerOrders(currentCustomer.email);
+            orders = localOrders.map(o => ({
+                id: o.id,
+                subtotal: o.total || o.subtotal || 0,
+                currency: 'USD',
+                delivery_status: 'processing',
+                is_subscription: false,
+                created_at: o.createdAt ? new Date(o.createdAt).toISOString() : new Date().toISOString(),
+                _localItems: o.items,
+            }));
+        }
+
+        if (currentOrderFilter !== 'all') {
+            orders = orders.filter(o => o.delivery_status === currentOrderFilter);
+        }
+
+        if (!orders.length) {
+            customerOrdersList.innerHTML = '<p class="settings-hint" style="margin:0;">No orders found.</p>';
             return;
         }
+
+        const statusColors = { processing: '#f59e0b', delivering: '#3b82f6', delivered: '#22c55e' };
+        const statusLabels = { processing: 'Processing', delivering: 'Delivering', delivered: 'Delivered' };
+
         customerOrdersList.innerHTML = orders.map(order => {
-            const when = new Date(order.createdAt || Date.now()).toLocaleString();
-            const items = (order.items || []).map(item => {
-                const variantPart = item.variant ? ' - ' + escapeHtml(item.variant) : '';
-                return `${escapeHtml(item.title)} x${item.qty}${variantPart}`;
-            }).join('<br>');
+            const when = new Date(order.created_at || Date.now()).toLocaleString();
+            const st = order.delivery_status || 'processing';
+            const stColor = statusColors[st] || '#888';
+            const stLabel = statusLabels[st] || st;
+            const subBadge = order.is_subscription ? ' <span class="cart-sub-badge" style="font-size:11px;">Subscription</span>' : '';
             return `
-            <div class="account-order-item">
+            <div class="account-order-item account-order-clickable" data-order-id="${escapeAttr(String(order.id))}">
                 <div class="account-order-top">
-                    <span>Order ${escapeHtml(String(order.id || 'N/A'))}</span>
-                    <span>${escapeHtml(when)}</span>
+                    <span>Order #${escapeHtml(String(order.id || 'N/A').substring(0, 8))}${subBadge}</span>
+                    <span style="color:${stColor};font-weight:600;">${escapeHtml(stLabel)}</span>
                 </div>
-                <div class="account-order-items">${items}</div>
-                <div class="account-order-top" style="margin-top:8px;margin-bottom:0;">
-                    <span>${order.refCode ? 'Affiliate: ' + escapeHtml(order.refCode) : 'No affiliate discount'}</span>
-                    <span class="account-order-total">EUR ${formatMoney(order.total || 0)}</span>
+                <div class="account-order-top" style="margin-top:6px;margin-bottom:0;">
+                    <span style="color:var(--text-muted);font-size:13px;">${escapeHtml(when)}</span>
+                    <span class="account-order-total">$${formatMoney(order.subtotal || 0)}</span>
                 </div>
             </div>`;
         }).join('');
+
+        // Click to open details
+        customerOrdersList.querySelectorAll('[data-order-id]').forEach(el => {
+            el.addEventListener('click', () => openOrderDetail(el.dataset.orderId));
+        });
     }
+
+    async function openOrderDetail(orderId) {
+        const overlay = $('#orderDetailOverlay');
+        const body = $('#orderDetailBody');
+        if (!overlay || !body) return;
+
+        body.innerHTML = '<p class="settings-hint">Loading...</p>';
+        overlay.style.display = '';
+
+        // Find order
+        let order = cachedRemoteOrders.find(o => o.id === orderId);
+        let items = [];
+        if (order && !order._localItems) {
+            items = await fetchOrderItems(orderId);
+        } else if (order && order._localItems) {
+            items = order._localItems.map(i => ({
+                product_title: i.title,
+                variant_name: i.variant || '',
+                qty: i.qty,
+                line_total: (i.unitPrice || 0) * (i.qty || 1),
+            }));
+        }
+
+        if (!order) {
+            body.innerHTML = '<p class="settings-hint">Order not found.</p>';
+            return;
+        }
+
+        const st = order.delivery_status || 'processing';
+        const statusLabels = { processing: 'Processing', delivering: 'Delivering', delivered: 'Delivered' };
+        const statusColors = { processing: '#f59e0b', delivering: '#3b82f6', delivered: '#22c55e' };
+        const when = new Date(order.created_at || Date.now()).toLocaleString();
+        const deliveredAt = order.delivered_at ? new Date(order.delivered_at).toLocaleString() : '';
+
+        const itemsHtml = items.length ? items.map(i => {
+            const variant = i.variant_name ? ` (${escapeHtml(i.variant_name)})` : '';
+            return `<div class="order-detail-item"><span>${escapeHtml(i.product_title)}${variant} x${i.qty}</span><span>$${formatMoney(i.line_total || 0)}</span></div>`;
+        }).join('') : '<p class="settings-hint">No items found.</p>';
+
+        body.innerHTML = `
+            <div class="order-detail-row"><strong>Order ID:</strong> <span>${escapeHtml(String(order.id))}</span></div>
+            <div class="order-detail-row"><strong>Date:</strong> <span>${escapeHtml(when)}</span></div>
+            <div class="order-detail-row"><strong>Status:</strong> <span style="color:${statusColors[st]};font-weight:600;">${escapeHtml(statusLabels[st] || st)}</span></div>
+            ${deliveredAt ? `<div class="order-detail-row"><strong>Delivered:</strong> <span>${escapeHtml(deliveredAt)}</span></div>` : ''}
+            ${order.is_subscription ? '<div class="order-detail-row"><strong>Type:</strong> <span>Subscription</span></div>' : ''}
+            <div class="order-detail-row"><strong>Total:</strong> <span>$${formatMoney(order.subtotal || 0)}</span></div>
+            <h4 style="margin:16px 0 8px;color:var(--text-primary);">Items</h4>
+            ${itemsHtml}
+            ${order.delivery_description ? `<h4 style="margin:16px 0 8px;color:var(--text-primary);">Delivery Info</h4><div class="order-detail-description">${escapeHtml(order.delivery_description)}</div>` : ''}
+        `;
+    }
+
+    // Order detail close
+    document.addEventListener('click', e => {
+        if (e.target.id === 'orderDetailClose' || (e.target.closest && e.target.id === 'orderDetailOverlay' && !e.target.closest('.order-detail-card'))) {
+            const overlay = $('#orderDetailOverlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+    });
+
+    // Order tab filtering
+    document.addEventListener('click', e => {
+        const tab = e.target.closest('[data-order-tab]');
+        if (!tab) return;
+        $$('[data-order-tab]').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentOrderFilter = tab.dataset.orderTab;
+        renderOrdersForCurrentCustomer();
+    });
 
     function renderAccountProgramPanels() {
         if (!currentCustomer) return;
@@ -2761,7 +2958,7 @@
     }
 
     function showAdminSection(section) {
-        const sections = { dashboard: 'adminDashboard', products: 'adminProducts', 'add-product': 'adminAddProduct', settings: 'adminSettings' };
+        const sections = { dashboard: 'adminDashboard', products: 'adminProducts', 'add-product': 'adminAddProduct', orders: 'adminOrders', settings: 'adminSettings' };
         Object.values(sections).forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.display = 'none';
@@ -2778,6 +2975,7 @@
         if (section === 'dashboard') renderDashboard();
         if (section === 'products') renderAdminProducts();
         if (section === 'add-product') resetProductForm();
+        if (section === 'orders') renderAdminOrders();
         if (section === 'settings') populateSettings();
     }
 
@@ -2862,6 +3060,209 @@
     if (adminSearchProducts) adminSearchProducts.addEventListener('input', renderAdminProducts);
     if (adminFilterCategory) adminFilterCategory.addEventListener('change', renderAdminProducts);
 
+    // ---- Admin Orders Management ----
+    let adminOrdersCache = [];
+
+    async function fetchAllOrders() {
+        if (!isSupabaseConfigured()) return [];
+        try {
+            const { data, error } = await supabaseClient
+                .from('orders')
+                .select('id, customer_email, status, delivery_status, delivery_description, subtotal, currency, is_subscription, subscription_period, created_at, delivered_at, updated_at')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data || [];
+        } catch { return []; }
+    }
+
+    async function renderAdminOrders() {
+        const tbody = $('#adminOrdersTable');
+        const emptyEl = $('#adminOrdersEmpty');
+        const countEl = $('#adminOrderCount');
+        if (!tbody) return;
+
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:24px;">Loading...</td></tr>';
+
+        let orders = await fetchAllOrders();
+        adminOrdersCache = orders;
+
+        // Filters
+        const searchVal = ($('#adminOrderSearch') ? $('#adminOrderSearch').value.trim().toLowerCase() : '');
+        const statusVal = ($('#adminOrderStatusFilter') ? $('#adminOrderStatusFilter').value : '');
+
+        if (searchVal) {
+            orders = orders.filter(o =>
+                o.customer_email.toLowerCase().includes(searchVal) ||
+                String(o.id).toLowerCase().includes(searchVal)
+            );
+        }
+        if (statusVal) {
+            orders = orders.filter(o => o.delivery_status === statusVal);
+        }
+
+        if (countEl) countEl.textContent = orders.length + ' order' + (orders.length !== 1 ? 's' : '');
+
+        if (!orders.length) {
+            tbody.innerHTML = '';
+            if (emptyEl) emptyEl.style.display = '';
+            return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+
+        const statusColors = { processing: '#f59e0b', delivering: '#3b82f6', delivered: '#22c55e' };
+        const statusLabels = { processing: 'Processing', delivering: 'Delivering', delivered: 'Delivered' };
+
+        tbody.innerHTML = orders.map(o => {
+            const st = o.delivery_status || 'processing';
+            const when = new Date(o.created_at || Date.now()).toLocaleDateString();
+            return `<tr>
+                <td style="font-family:monospace;font-size:12px;">${escapeHtml(String(o.id).substring(0, 8))}</td>
+                <td>${escapeHtml(o.customer_email)}</td>
+                <td style="color:var(--orange-light)">$${formatMoney(o.subtotal || 0)}</td>
+                <td><span style="color:${statusColors[st] || '#888'};font-weight:600;">${escapeHtml(statusLabels[st] || st)}</span>${o.is_subscription ? ' <span class="cart-sub-badge" style="font-size:10px;">Sub</span>' : ''}</td>
+                <td style="font-size:13px;">${escapeHtml(when)}</td>
+                <td class="table-actions"><button class="table-btn table-btn-edit" data-admin-order="${o.id}">Manage</button></td>
+            </tr>`;
+        }).join('');
+
+        tbody.querySelectorAll('[data-admin-order]').forEach(btn => {
+            btn.addEventListener('click', () => openAdminOrderDetail(btn.dataset.adminOrder));
+        });
+    }
+
+    // Filters
+    if ($('#adminOrderSearch')) $('#adminOrderSearch').addEventListener('input', renderAdminOrders);
+    if ($('#adminOrderStatusFilter')) $('#adminOrderStatusFilter').addEventListener('change', renderAdminOrders);
+
+    async function openAdminOrderDetail(orderId) {
+        const overlay = $('#adminOrderDetailOverlay');
+        const body = $('#adminOrderDetailBody');
+        if (!overlay || !body) return;
+
+        const order = adminOrdersCache.find(o => o.id === orderId);
+        if (!order) return;
+
+        $('#adminOrderEditId').value = orderId;
+        $('#adminOrderStatus').value = order.delivery_status || 'processing';
+        $('#adminOrderDescription').value = order.delivery_description || '';
+
+        const items = await fetchOrderItems(orderId);
+        const when = new Date(order.created_at || Date.now()).toLocaleString();
+        const itemsHtml = items.length ? items.map(i => {
+            const variant = i.variant_name ? ` (${escapeHtml(i.variant_name)})` : '';
+            return `<div class="order-detail-item"><span>${escapeHtml(i.product_title)}${variant} x${i.qty}</span><span>$${formatMoney(i.line_total || 0)}</span></div>`;
+        }).join('') : '<p class="settings-hint">No items recorded.</p>';
+
+        body.innerHTML = `
+            <div class="order-detail-row"><strong>Order ID:</strong> <span style="font-family:monospace;">${escapeHtml(String(order.id))}</span></div>
+            <div class="order-detail-row"><strong>Customer:</strong> <span>${escapeHtml(order.customer_email)}</span></div>
+            <div class="order-detail-row"><strong>Date:</strong> <span>${escapeHtml(when)}</span></div>
+            <div class="order-detail-row"><strong>Total:</strong> <span>$${formatMoney(order.subtotal || 0)}</span></div>
+            ${order.is_subscription ? '<div class="order-detail-row"><strong>Type:</strong> <span>Subscription</span></div>' : ''}
+            <h4 style="margin:12px 0 8px;color:var(--text-primary);">Items</h4>
+            ${itemsHtml}
+        `;
+
+        overlay.style.display = '';
+    }
+
+    function closeAdminOrderDetail() {
+        const overlay = $('#adminOrderDetailOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    if ($('#adminOrderDetailClose')) $('#adminOrderDetailClose').addEventListener('click', closeAdminOrderDetail);
+    if ($('#adminOrderCancelBtn')) $('#adminOrderCancelBtn').addEventListener('click', closeAdminOrderDetail);
+
+    if ($('#adminOrderSaveBtn')) {
+        $('#adminOrderSaveBtn').addEventListener('click', async () => {
+            const orderId = $('#adminOrderEditId').value;
+            const newStatus = $('#adminOrderStatus').value;
+            const description = $('#adminOrderDescription').value.trim();
+            const sendEmail = $('#adminOrderSendEmail').checked;
+
+            if (!orderId || !isSupabaseConfigured()) {
+                showToast('Cannot update order.', 'error');
+                return;
+            }
+
+            const order = adminOrdersCache.find(o => o.id === orderId);
+            if (!order) return;
+
+            const updateData = {
+                delivery_status: newStatus,
+                delivery_description: description,
+                updated_at: new Date().toISOString(),
+            };
+            if (newStatus === 'delivered') {
+                updateData.delivered_at = new Date().toISOString();
+            }
+
+            try {
+                const { error } = await supabaseClient
+                    .from('orders')
+                    .update(updateData)
+                    .eq('id', orderId);
+                if (error) throw error;
+            } catch (err) {
+                showToast('Failed to update order: ' + (err.message || 'Unknown error'), 'error');
+                return;
+            }
+
+            // Send email notification if checked
+            if (sendEmail && order.customer_email) {
+                try {
+                    await sendOrderStatusEmail(order.customer_email, orderId, newStatus, description);
+                } catch {
+                    showToast('Order updated but email failed to send.', 'error');
+                    closeAdminOrderDetail();
+                    renderAdminOrders();
+                    return;
+                }
+            }
+
+            showToast('Order updated successfully.', 'success');
+            closeAdminOrderDetail();
+            renderAdminOrders();
+        });
+    }
+
+    async function sendOrderStatusEmail(email, orderId, status, description) {
+        const statusLabels = { processing: 'Processing', delivering: 'Delivering', delivered: 'Delivered' };
+        const sendOrderEmailUrl = APP_CONFIG.orderEmailFunctionUrl;
+        if (!sendOrderEmailUrl || sendOrderEmailUrl === 'YOUR_ORDER_EMAIL_FUNCTION_URL') {
+            // Use Supabase function URL fallback
+            const baseUrl = APP_CONFIG.supabaseUrl || '';
+            if (!baseUrl) return;
+            const url = baseUrl + '/functions/v1/send-order-email';
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', apikey: APP_CONFIG.supabaseAnonKey },
+                body: JSON.stringify({
+                    customerEmail: email,
+                    orderId: orderId,
+                    status: status,
+                    statusLabel: statusLabels[status] || status,
+                    description: description,
+                    type: 'status_update',
+                }),
+            });
+            return;
+        }
+        await fetch(sendOrderEmailUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', apikey: APP_CONFIG.supabaseAnonKey },
+            body: JSON.stringify({
+                customerEmail: email,
+                orderId: orderId,
+                status: status,
+                statusLabel: statusLabels[status] || status,
+                description: description,
+                type: 'status_update',
+            }),
+        });
+    }
+
     // ---- Product Form (Add / Edit) ----
     const productForm = $('#productForm');
     const productEditId = $('#productEditId');
@@ -2877,6 +3278,10 @@
         $('#productWarranty').value = '';
         $('#productImageData').value = '';
         if ($('#productImageFile')) $('#productImageFile').value = '';
+        $('#productSubscriptionEnabled').checked = false;
+        $('#productSubscriptionDefault').checked = false;
+        $('#subscriptionOptions').style.display = 'none';
+        $$('.sub-period-check').forEach(cb => cb.checked = false);
         clearVariantRows();
         addVariantRow('', '');
     }
@@ -2907,6 +3312,19 @@
         } else {
             $('#imagePreview').innerHTML = '';
         }
+        // Subscription fields
+        const subEnabled = !!product.subscriptionEnabled;
+        $('#productSubscriptionEnabled').checked = subEnabled;
+        $('#subscriptionOptions').style.display = subEnabled ? '' : 'none';
+        $('#productSubscriptionDefault').checked = !!product.subscriptionDefault;
+        $$('.sub-period-check').forEach(cb => cb.checked = false);
+        if (Array.isArray(product.subscriptionPeriods)) {
+            product.subscriptionPeriods.forEach(p => {
+                const cb = $(`.sub-period-check[value="${p}"]`);
+                if (cb) cb.checked = true;
+            });
+        }
+
         clearVariantRows();
         if (product.variants && product.variants.length > 0) {
             product.variants.forEach(v => addVariantRow(v.name, v.price, v.originalPrice));
@@ -2936,6 +3354,17 @@
     }
 
     $('#addVariantBtn').addEventListener('click', () => addVariantRow('', '', ''));
+
+    // Subscription toggle
+    $('#productSubscriptionEnabled').addEventListener('change', function () {
+        $('#subscriptionOptions').style.display = this.checked ? '' : 'none';
+    });
+
+    function getSubscriptionPeriodsFromForm() {
+        const periods = [];
+        $$('.sub-period-check').forEach(cb => { if (cb.checked) periods.push(cb.value); });
+        return periods;
+    }
 
     function getVariantsFromForm() {
         const rows = $$('#variantsList .variant-row');
@@ -3235,6 +3664,9 @@
             featured: $('#productFeatured').checked,
             warranty: $('#productWarranty').value.trim() || null,
             variants: variants,
+            subscriptionEnabled: $('#productSubscriptionEnabled').checked,
+            subscriptionDefault: $('#productSubscriptionDefault').checked,
+            subscriptionPeriods: getSubscriptionPeriodsFromForm(),
         };
 
         const editId = productEditId.value;

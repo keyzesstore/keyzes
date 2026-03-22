@@ -2,3 +2,6 @@ project_id = "gypznlmfkarzgzfbqhks"
 
 [functions.create-stripe-checkout]
 verify_jwt = false
+
+[functions.send-order-email]
+verify_jwt = false

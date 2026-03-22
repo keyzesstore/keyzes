@@ -4672,3 +4672,184 @@ body.auth-open {
         transform: scale(1);
     }
 }
+
+/* ===========================
+   SUBSCRIPTION & ORDER TRACKING STYLES
+   =========================== */
+
+/* Subscription selector in product modal */
+.subscription-selector {
+    margin: 12px 0 8px;
+}
+.subscription-toggle-row {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0;
+}
+.sub-type-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.sub-type-btn.active {
+    border-color: var(--orange-primary);
+    background: rgba(255, 140, 50, 0.08);
+    color: var(--orange-light);
+}
+.sub-type-btn:hover:not(.active) {
+    border-color: var(--text-muted);
+}
+.subscription-period-row {
+    margin-top: 8px;
+}
+.subscription-period-options {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+}
+
+/* Subscription badge in cart */
+.cart-sub-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--orange-primary), var(--orange-accent));
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* Subscription periods editor in admin */
+.subscription-periods-editor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    margin-top: 8px;
+}
+.subscription-periods-editor .toggle-label {
+    font-size: 14px;
+    gap: 8px;
+}
+
+/* ---- Order status tabs ---- */
+.order-status-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.order-tab-btn {
+    padding: 7px 16px;
+    border: 1.5px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.order-tab-btn.active {
+    border-color: var(--orange-primary);
+    background: rgba(255, 140, 50, 0.08);
+    color: var(--orange-light);
+}
+
+/* Clickable order card */
+.account-order-clickable {
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+.account-order-clickable:hover {
+    border-color: var(--orange-primary);
+    background: rgba(255, 140, 50, 0.04);
+}
+
+/* ---- Order detail overlay ---- */
+.order-detail-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.order-detail-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    width: 100%;
+    max-width: 520px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 24px;
+}
+.order-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.order-detail-header h3 {
+    color: var(--text-primary);
+    font-size: 18px;
+    margin: 0;
+}
+.order-detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+.order-detail-row strong {
+    color: var(--text-primary);
+}
+.order-detail-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+.order-detail-description {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    line-height: 1.6;
+}
+
+/* Admin order detail overlay */
+.admin-order-detail-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.65);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+.admin-order-update-form .form-group {
+    margin-bottom: 12px;
+}
+.admin-order-update-form .form-actions {
+    margin-top: 16px;
+}

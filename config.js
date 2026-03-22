@@ -9,7 +9,7 @@ window.KEYZES_CONFIG = {
 
     // Supabase Edge Function URL (optional, for confirmation emails)
     // Example: https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-order-email
-    orderEmailFunctionUrl: 'YOUR_ORDER_EMAIL_FUNCTION_URL',
+    orderEmailFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/send-order-email',
 
     // Supabase Edge Function URL (optional, Stripe hosted checkout)
     // Example: https://YOUR_PROJECT_REF.supabase.co/functions/v1/create-stripe-checkout

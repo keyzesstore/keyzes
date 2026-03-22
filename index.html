@@ -330,10 +330,26 @@
                         <section class="settings-card">
                             <h3>Purchase Orders</h3>
                             <p class="settings-hint">Track everything you bought from Keyzes.</p>
+                            <div class="order-status-tabs">
+                                <button type="button" class="order-tab-btn active" data-order-tab="all">All</button>
+                                <button type="button" class="order-tab-btn" data-order-tab="processing">Processing</button>
+                                <button type="button" class="order-tab-btn" data-order-tab="delivering">Delivering</button>
+                                <button type="button" class="order-tab-btn" data-order-tab="delivered">Delivered</button>
+                            </div>
                             <div class="account-orders-list" id="customerOrdersList">
                                 <p class="settings-hint" style="margin:0;">No orders yet.</p>
                             </div>
                         </section>
+                        <!-- Order Detail Overlay -->
+                        <div class="order-detail-overlay" id="orderDetailOverlay" style="display:none;">
+                            <div class="order-detail-card">
+                                <div class="order-detail-header">
+                                    <h3>Order Details</h3>
+                                    <button type="button" class="product-modal-close" id="orderDetailClose">&times;</button>
+                                </div>
+                                <div class="order-detail-body" id="orderDetailBody"></div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="account-pane" data-account-pane="selling">
@@ -526,6 +542,10 @@
                     <a href="#" class="admin-nav-item" data-section="add-product">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                         Add Product
+                    </a>
+                    <a href="#" class="admin-nav-item" data-section="orders">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        Orders
                     </a>
                     <a href="#" class="admin-nav-item" data-section="settings">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
@@ -759,12 +779,115 @@
                             </label>
                         </div>
 
+                        <!-- Subscription Settings -->
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="productSubscriptionEnabled" class="toggle-input">
+                                <span class="toggle-switch"></span>
+                                Allow Subscription Purchase
+                            </label>
+                        </div>
+
+                        <div id="subscriptionOptions" style="display:none;">
+                            <div class="form-group">
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="productSubscriptionDefault" class="toggle-input">
+                                    <span class="toggle-switch"></span>
+                                    Pre-select subscription option for customers
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>Subscription Periods <span class="form-hint">Select which billing periods customers can choose</span></label>
+                                <div class="subscription-periods-editor">
+                                    <label class="toggle-label"><input type="checkbox" class="sub-period-check" value="1_month"> <span>1 Month</span></label>
+                                    <label class="toggle-label"><input type="checkbox" class="sub-period-check" value="3_months"> <span>3 Months</span></label>
+                                    <label class="toggle-label"><input type="checkbox" class="sub-period-check" value="6_months"> <span>6 Months</span></label>
+                                    <label class="toggle-label"><input type="checkbox" class="sub-period-check" value="1_year"> <span>1 Year</span></label>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="form-actions">
                             <button type="button" class="admin-btn admin-btn-ghost" id="cancelProductForm">Cancel</button>
                             <button type="submit" class="admin-btn admin-btn-primary" id="submitProductBtn">Add Product</button>
                         </div>
                     </form>
                 </section>
+
+                <!-- === Admin Orders Section === -->
+                <section class="admin-section" id="adminOrders" style="display:none;">
+                    <div class="admin-section-header">
+                        <h2>Order Management</h2>
+                        <span class="admin-badge" id="adminOrderCount">0 orders</span>
+                    </div>
+                    <div class="admin-toolbar">
+                        <div class="admin-search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                            <input type="text" id="adminOrderSearch" placeholder="Search by email or order ID...">
+                        </div>
+                        <select id="adminOrderStatusFilter" class="admin-select">
+                            <option value="">All Statuses</option>
+                            <option value="processing">Processing</option>
+                            <option value="delivering">Delivering</option>
+                            <option value="delivered">Delivered</option>
+                        </select>
+                    </div>
+                    <div class="admin-table-wrap">
+                        <table class="admin-table">
+                            <thead>
+                                <tr>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminOrdersTable"></tbody>
+                        </table>
+                    </div>
+                    <div class="admin-empty" id="adminOrdersEmpty" style="display:none;">
+                        <p>No orders found.</p>
+                    </div>
+                </section>
+
+                <!-- Admin Order Detail / Update Panel -->
+                <div class="admin-order-detail-overlay" id="adminOrderDetailOverlay" style="display:none;">
+                    <div class="order-detail-card" style="max-width:600px;">
+                        <div class="order-detail-header">
+                            <h3>Update Order</h3>
+                            <button type="button" class="product-modal-close" id="adminOrderDetailClose">&times;</button>
+                        </div>
+                        <div id="adminOrderDetailBody"></div>
+                        <div class="admin-order-update-form" style="margin-top:16px;">
+                            <input type="hidden" id="adminOrderEditId" value="">
+                            <div class="form-group">
+                                <label for="adminOrderStatus">Delivery Status</label>
+                                <select id="adminOrderStatus" class="admin-select">
+                                    <option value="processing">Processing</option>
+                                    <option value="delivering">Delivering</option>
+                                    <option value="delivered">Delivered</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="adminOrderDescription">Delivery Description <span class="form-hint">This will be sent to the customer via email</span></label>
+                                <textarea id="adminOrderDescription" rows="4" placeholder="Add delivery details, tracking info, or notes for the customer..."></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label class="toggle-label">
+                                    <input type="checkbox" id="adminOrderSendEmail" class="toggle-input" checked>
+                                    <span class="toggle-switch"></span>
+                                    Send email notification to customer
+                                </label>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="admin-btn admin-btn-ghost" id="adminOrderCancelBtn">Cancel</button>
+                                <button type="button" class="admin-btn admin-btn-primary" id="adminOrderSaveBtn">Save & Update</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- === Settings Section === -->
                 <section class="admin-section" id="adminSettings" style="display:none;">
@@ -1084,6 +1207,17 @@
                     <div class="variant-selector" id="variantSelector" style="display:none;">
                         <label class="variant-label">Select option:</label>
                         <div class="variant-options" id="variantOptions"></div>
+                    </div>
+                    <div class="subscription-selector" id="modalSubscriptionSelector" style="display:none;">
+                        <label class="variant-label">Purchase type:</label>
+                        <div class="subscription-toggle-row">
+                            <button type="button" class="sub-type-btn active" data-sub-type="onetime">One-time</button>
+                            <button type="button" class="sub-type-btn" data-sub-type="subscription">Subscription</button>
+                        </div>
+                        <div class="subscription-period-row" id="modalSubPeriodRow" style="display:none;">
+                            <label class="variant-label">Billing period:</label>
+                            <div class="subscription-period-options" id="modalSubPeriodOptions"></div>
+                        </div>
                     </div>
                     <div class="product-modal-pricing">
                         <span class="price-current" id="modalProductPrice"></span>
