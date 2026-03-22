@@ -1322,6 +1322,13 @@ a {
 
 @media (max-width: 768px) {
 
+    /* Prevent iPhone Safari from zooming when form fields receive focus. */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+
     /* --- Container --- */
     .container {
         padding: 0 14px;
