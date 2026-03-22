@@ -3,3 +3,10 @@ supabase/functions/backfill-orders/
 supabase/functions/setup-webhook/
 check_policies.sql
 temp_realtime.sql
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
