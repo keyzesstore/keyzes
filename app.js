@@ -1675,6 +1675,7 @@
         hideVerifyBox();
         customerAuthOverlay.classList.add('open');
         document.body.style.overflow = 'hidden';
+        document.body.classList.add('auth-open');
         const focusTarget = mode === 'signup'
             ? $('#customerSignupName')
             : mode === 'forgot'
@@ -1687,6 +1688,7 @@
 
     function closeCustomerAuth() {
         customerAuthOverlay.classList.remove('open');
+        document.body.classList.remove('auth-open');
         document.body.style.overflow = productModal.classList.contains('open') ? 'hidden' : '';
     }
 
