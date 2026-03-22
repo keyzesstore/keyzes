@@ -3309,6 +3309,32 @@
         }
     }
 
+    let catalogRealtimeChannel = null;
+    let catalogRefreshTimer = null;
+
+    function scheduleCatalogRefresh() {
+        if (catalogRefreshTimer) clearTimeout(catalogRefreshTimer);
+        catalogRefreshTimer = setTimeout(() => {
+            refreshCatalogFromCloudAndRender();
+        }, 120);
+    }
+
+    function subscribeToCatalogRealtime() {
+        if (!isSupabaseConfigured()) return;
+        if (catalogRealtimeChannel) return;
+
+        catalogRealtimeChannel = supabaseClient
+            .channel('keyzes-product-catalog-live')
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'product_catalog',
+            }, () => {
+                scheduleCatalogRefresh();
+            })
+            .subscribe();
+    }
+
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
             refreshCatalogFromCloudAndRender();
@@ -3322,6 +3348,7 @@
     (async function initializeApp() {
         await loadSharedProductCatalog();
         renderProducts();
+        subscribeToCatalogRealtime();
         initializeCustomerAuth();
     })();
 
