@@ -26,14 +26,6 @@
             </div>
             <nav class="nav-links" id="storeNavLinks">
                 <a href="#" class="nav-link active" data-nav="store">Store</a>
-                <a href="#" class="nav-link cart-link" data-nav="cart">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
-                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
-                    </svg>
-                    Cart
-                </a>
-                <a href="#" class="nav-link" id="accountTrigger" data-nav="account" style="display:none;">Account</a>
                 <div class="customer-auth-nav">
                     <div class="customer-guest-actions" id="customerGuestActions">
                         <button type="button" class="nav-auth-btn nav-auth-btn-primary" id="openAuthBtn">Login / Sign up</button>
@@ -45,24 +37,14 @@
                         </button>
                     </div>
                 </div>
-                <div class="notif-bell-wrapper" style="position:relative;">
-                    <button type="button" class="notif-bell-btn" id="notifBellBtn" title="Notifications" style="display:none;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                        </svg>
-                        <span class="notif-bell-badge" id="notifBellBadge"></span>
-                    </button>
-                    <div class="notif-history-panel" id="notifHistoryPanel">
-                        <div class="notif-history-header">
-                            <span>Notifications</span>
-                            <button type="button" class="notif-history-close" id="notifHistoryClose">&times;</button>
-                        </div>
-                        <div class="notif-history-list" id="notifHistoryList">
-                            <div class="notif-history-empty">No notifications yet</div>
-                        </div>
-                    </div>
-                </div>
+                <a href="#" class="nav-link cart-link" data-nav="cart">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                    </svg>
+                    Cart
+                </a>
+                <a href="#" class="nav-link" id="accountTrigger" data-nav="account" style="display:none;">Account</a>
                 <a href="#" class="nav-link admin-trigger" id="adminTrigger" title="Admin Panel" style="display:none;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
                         <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
@@ -315,18 +297,6 @@
                                 <button type="button" class="admin-btn admin-btn-outline" id="storeCreditTopupBtn" disabled>Top Up (coming soon)</button>
                             </div>
                         </section>
-                        <section class="settings-card">
-                            <h3>Apply Referral Code</h3>
-                            <p class="settings-hint">Add another creator's code to activate your checkout discount.</p>
-                            <div class="g4-action-group">
-                                <label class="g4-action-label" for="affiliateApplyCodeInput">APPLY OTHER'S CODE</label>
-                                <div class="g4-action-input-row">
-                                    <input type="text" id="affiliateApplyCodeInput" placeholder="Enter referral code" class="g4-input">
-                                    <button type="button" class="g4-btn-apply" id="affiliateApplyCodeBtn">Apply</button>
-                                </div>
-                            </div>
-                            <div class="g4-msg" id="affiliateActionMsg"></div>
-                        </section>
                     </div>
 
                     <div class="account-pane" data-account-pane="orders">
@@ -347,162 +317,51 @@
                     </div>
 
                     <div class="account-pane" data-account-pane="affiliate">
-                        <section class="settings-card g4-affiliate">
-
-                            <!-- Row 1: Info Cards -->
-                            <div class="g4-info-row">
-                                <div class="g4-info-card">
-                                    <div class="g4-info-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c8dc4" stroke-width="2"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg></div>
-                                    <div class="g4-info-text">
-                                        <strong>SHARE YOUR CODE</strong>
-                                        <span>Invite your friends and community to Keyzes using your unique partner code.</span>
-                                    </div>
+                        <section class="settings-card">
+                            <h3>Affiliate Program</h3>
+                            <p class="settings-hint">Create your code, earn 3% commission, and your buyers get 3% discount on all products.</p>
+                            <div class="affiliate-create-row">
+                                <input type="text" id="affiliateCodeInput" placeholder="Create code (A-Z, 0-9)">
+                                <button type="button" class="admin-btn admin-btn-primary" id="affiliateCreateBtn">Create Code</button>
+                            </div>
+                            <div class="affiliate-link-box" id="affiliateLinkBox" style="display:none;">
+                                <span class="settings-hint" style="margin:0;">Your referral link</span>
+                                <input type="text" id="affiliateLinkValue" readonly>
+                                <button type="button" class="admin-btn admin-btn-primary" id="affiliateCopyBtn">Copy Referral Link</button>
+                            </div>
+                            <div class="affiliate-code-box" id="affiliateCodeBox" style="display:none;">
+                                <div>
+                                    <span class="settings-hint" style="margin:0;">Your promotional code</span>
+                                    <strong id="affiliateCodeValue">-</strong>
                                 </div>
-                                <div class="g4-info-card">
-                                    <div class="g4-info-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c8dc4" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div>
-                                    <div class="g4-info-text">
-                                        <strong>EARN FROM EVERY TRANSACTION</strong>
-                                        <span>When your code is used, you will receive 3% of the value from every payment.</span>
-                                    </div>
+                                <span class="affiliate-code-rate">Earn 3%</span>
+                            </div>
+                            <div class="affiliate-stats-grid">
+                                <div class="account-balance-item">
+                                    <span>Code Uses</span>
+                                    <strong id="affiliateUsesCount">0</strong>
                                 </div>
-                                <div class="g4-info-card">
-                                    <div class="g4-info-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7c8dc4" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M16 8l-4 4-4-4"/><line x1="12" y1="16" x2="12" y2="12"/></svg></div>
-                                    <div class="g4-info-text">
-                                        <strong>WITHDRAW EARNED FUNDS</strong>
-                                        <span>You can easily withdraw the accumulated funds to your wallet or transfer to store credit.</span>
-                                    </div>
+                                <div class="account-balance-item">
+                                    <span>Unique Buyers</span>
+                                    <strong id="affiliateUniqueCount">0</strong>
+                                </div>
+                                <div class="account-balance-item">
+                                    <span>Total Earned</span>
+                                    <strong id="affiliateEarnedTotal">0.00 EUR</strong>
+                                </div>
+                                <div class="account-balance-item">
+                                    <span>Commission Rate</span>
+                                    <strong>3%</strong>
                                 </div>
                             </div>
-
-                            <!-- Row 2: Tabs -->
-                            <div class="g4-tabs-row">
-                                <div class="g4-tabs-left">
-                                    <button class="g4-tab g4-tab-active">📋 DASHBOARD</button>
-                                    <button class="g4-tab">🏷️ PR MATERIALS</button>
-                                    <button class="g4-tab">❓ FAQ</button>
+                            <div class="affiliate-chart" id="affiliateChartBars"></div>
+                            <div class="affiliate-withdraw-box">
+                                <p class="settings-hint" style="margin:0;">Cashout is available only from affiliate balance and only from $1.00. Withdraw via support email or transfer to store credit.</p>
+                                <div class="store-credit-actions">
+                                    <button type="button" class="admin-btn admin-btn-outline" id="affiliateWithdrawEmailBtn">Withdraw via Email</button>
+                                    <button type="button" class="admin-btn admin-btn-primary" id="affiliateTransferCreditBtn">Transfer to Store Credit</button>
                                 </div>
-                                <div class="g4-tabs-right">
-                                    <span class="g4-tab-link">Get free codes</span>
-                                </div>
-                            </div>
-
-                            <!-- Row 3: Hero (2 columns) -->
-                            <div class="g4-hero-row">
-                                <div class="g4-hero-left">
-                                    <div class="g4-hero-earn">EARN 3%</div>
-                                    <div class="g4-hero-sub">FROM EVERY PAYMENT</div>
-                                    <div id="affiliateLinkBox" style="display:none;">
-                                        <input type="text" id="affiliateLinkValue" readonly class="g4-ref-input" placeholder="Your referral link">
-                                        <button type="button" class="g4-copy-btn" id="affiliateCopyBtn">COPY YOUR REFERRAL LINK 📋</button>
-                                    </div>
-                                    <div id="affiliateCodeBox" style="display:none;">
-                                        <div class="g4-code-label">YOUR PROMOTIONAL CODE</div>
-                                        <div class="g4-code-value" id="affiliateCodeValue">-</div>
-                                        <button type="button" class="g4-delete-btn" id="affiliateDeleteBtn">Delete Code</button>
-                                    </div>
-                                    <div class="g4-hero-character">
-                                        <img src="photos/keyzes-logo-no-backround.png" alt="Keyzes logo">
-                                    </div>
-                                </div>
-                                <div class="g4-hero-right">
-                                    <div class="g4-action-group">
-                                        <label class="g4-action-label">CREATE YOUR CODE</label>
-                                        <div class="g4-action-input-row">
-                                            <input type="text" id="affiliateCodeInput" placeholder="Code (A-Z, 0-9)" class="g4-input">
-                                            <button type="button" class="g4-btn-create" id="affiliateCreateBtn">Create</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Row 4: Referral benefit + Withdrawable (2 columns) -->
-                            <div class="g4-mid-row">
-                                <div class="g4-refer-card">
-                                    <div class="g4-refer-icon">⭐</div>
-                                    <div class="g4-refer-text">
-                                        <strong>EVERY PERSON YOU REFER WILL RECEIVE</strong>
-                                        <span>+5% on their deposit</span>
-                                    </div>
-                                </div>
-                                <div class="g4-withdraw-card">
-                                    <div class="g4-withdraw-icon">💰</div>
-                                    <div class="g4-withdraw-info">
-                                        <div class="g4-withdraw-label">Withdrawable amount</div>
-                                        <div class="g4-withdraw-amount" id="affiliateBalanceLarge">0.00 EUR</div>
-                                        <div class="g4-withdraw-min">Min. 1.00 EUR</div>
-                                    </div>
-                                    <div class="g4-withdraw-actions">
-                                        <button type="button" class="g4-withdraw-btn" id="affiliateWithdrawEmailBtn">WITHDRAW →</button>
-                                        <button type="button" class="g4-btn-transfer" id="affiliateTransferCreditBtn">Transfer to Store Credit</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Row 5: Stats (4 columns) -->
-                            <div class="g4-stats-row">
-                                <div class="g4-stat-card">
-                                    <div class="g4-stat-info">
-                                        <div class="g4-stat-label">Active referrals</div>
-                                        <div class="g4-stat-value" id="affiliateUsesCount">0</div>
-                                    </div>
-                                    <div class="g4-stat-icon g4-stat-icon-blue" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M16 20v-2a4 4 0 0 0-8 0v2"/>
-                                            <circle cx="12" cy="10" r="3"/>
-                                            <path d="M6 20v-1a3 3 0 0 1 3-3"/>
-                                            <path d="M18 20v-1a3 3 0 0 0-3-3"/>
-                                            <circle cx="7" cy="12" r="2"/>
-                                            <circle cx="17" cy="12" r="2"/>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="g4-stat-card">
-                                    <div class="g4-stat-info">
-                                        <div class="g4-stat-label">Your profit percentage</div>
-                                        <div class="g4-stat-value">3%</div>
-                                    </div>
-                                    <div class="g4-stat-icon g4-stat-icon-green" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M5 16l6-6 4 4 5-5"/>
-                                            <path d="M15 9h5v5"/>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="g4-stat-card">
-                                    <div class="g4-stat-info">
-                                        <div class="g4-stat-label">Referred person will receive 5% discount</div>
-                                        <div class="g4-stat-value" id="affiliateUniqueCount">5%</div>
-                                    </div>
-                                    <div class="g4-stat-icon g4-stat-icon-purple" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M7 19L17 5"/>
-                                            <circle cx="8" cy="8" r="2.5"/>
-                                            <circle cx="16" cy="16" r="2.5"/>
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div class="g4-stat-card">
-                                    <div class="g4-stat-info">
-                                        <div class="g4-stat-label">Your promotional code</div>
-                                        <div class="g4-stat-value" id="affiliateCodeValueBottom">-</div>
-                                    </div>
-                                    <div class="g4-stat-icon g4-stat-icon-orange" aria-hidden="true">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                            <path d="M3 9a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                                            <path d="M8 7V5"/>
-                                            <path d="M16 7V5"/>
-                                            <circle cx="9" cy="12" r="1"/>
-                                            <circle cx="15" cy="12" r="1"/>
-                                        </svg>
-                                    </div>
-                                </div>
-                            </div>
-
-
-
-                            <!-- Hidden fields for JS compat -->
-                            <div style="display:none;">
-                                <span id="affiliateEarnedTotal">0.00 EUR</span>
+                                <div class="admin-login-error" id="affiliateActionMsg"></div>
                             </div>
                         </section>
                     </div>
@@ -1069,18 +928,6 @@
                                     </svg>
                                 </span>
                                 <input type="email" id="customerSignupEmail" placeholder="you@example.com" autocomplete="email" required>
-                            </div>
-                        </div>
-                        <div class="admin-form-group">
-                            <label for="customerSignupReferralCode">Referral Code (Optional)</label>
-                            <div class="customer-input-wrap">
-                                <span class="customer-input-icon" aria-hidden="true">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                                        <path d="M10 13a5 5 0 0 1 0-7l1.5-1.5a5 5 0 0 1 7 7L17 13"/>
-                                        <path d="M14 11a5 5 0 0 1 0 7L12.5 19.5a5 5 0 0 1-7-7L7 11"/>
-                                    </svg>
-                                </span>
-                                <input type="text" id="customerSignupReferralCode" placeholder="Referral code (if you have one)" autocomplete="off">
                             </div>
                         </div>
                         <div class="admin-form-group">

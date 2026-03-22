@@ -19,10 +19,8 @@
     const STORAGE_AFFILIATE_CODES = 'keyzes_affiliate_codes_v1';
     const STORAGE_PENDING_REF = 'keyzes_pending_ref_v1';
     const ADMIN_EMAIL = 'keyzes.store@gmail.com';
-    const AFFILIATE_DISCOUNT_RATE = 0.05;
-    const AFFILIATE_DISCOUNT_LABEL = '5%';
-    const AFFILIATE_COMMISSION_RATE = 0.03;
-    const AFFILIATE_COMMISSION_LABEL = '3%';
+    const AFFILIATE_RATE = 0.03;
+    const AFFILIATE_RATE_LABEL = '3%';
 
     // ---- Default Admin Credentials ----
     const DEFAULT_ADMIN = { username: 'admin', password: 'admin123' };
@@ -110,7 +108,7 @@
     function getCheckoutPricing(customer, cartItems) {
         const subtotal = cartItems.reduce((sum, item) => sum + (getItemPrice(item) * item.qty), 0);
         const activeRefCode = getActiveReferralCodeForCustomer(customer);
-        const discountAmount = activeRefCode ? subtotal * AFFILIATE_DISCOUNT_RATE : 0;
+        const discountAmount = activeRefCode ? subtotal * AFFILIATE_RATE : 0;
         const total = Math.max(0, subtotal - discountAmount);
         return {
             subtotal,
@@ -151,7 +149,7 @@
         const buyerEmail = normalizeEmail(customer.email);
         if (!ownerEmail || ownerEmail === buyerEmail) return;
 
-        const commission = pricing.subtotal * AFFILIATE_COMMISSION_RATE;
+        const commission = pricing.subtotal * AFFILIATE_RATE;
         const ownerProfile = getCustomerProfile(ownerEmail, true);
         ownerProfile.affiliateBalance = Number(ownerProfile.affiliateBalance || 0) + commission;
         ownerProfile.affiliateEarningsTotal = Number(ownerProfile.affiliateEarningsTotal || 0) + commission;
@@ -177,8 +175,7 @@
         if (!pendingCode) return;
 
         const ownerEmail = getRefOwnerEmail(pendingCode);
-        // Only reject if we KNOW the owner and it's the same user
-        if (ownerEmail && ownerEmail === normalizeEmail(customer.email)) {
+        if (!ownerEmail || ownerEmail === normalizeEmail(customer.email)) {
             localStorage.removeItem(STORAGE_PENDING_REF);
             return;
         }
@@ -187,39 +184,23 @@
         if (!profile.referredBy) {
             profile.referredBy = pendingCode;
             saveCustomerProgramState();
-            showToast('Affiliate discount activated (' + AFFILIATE_DISCOUNT_LABEL + ') for your account.', 'success');
+            showToast('Affiliate discount activated (' + AFFILIATE_RATE_LABEL + ') for your account.', 'success');
         }
         localStorage.removeItem(STORAGE_PENDING_REF);
     }
-
-    let pendingRefAction = null; // 'signup' or 'apply' — deferred until init complete
 
     function captureReferralFromUrl() {
         const params = new URLSearchParams(window.location.search || '');
         const refCode = cleanAffiliateCode(params.get('ref'));
         if (!refCode) return;
-
-        const ownerEmail = getRefOwnerEmail(refCode);
-
-        if (ownerEmail && currentCustomer && normalizeEmail(currentCustomer.email) === normalizeEmail(ownerEmail)) {
-            params.delete('ref');
-            const cleanSearchSelf = params.toString();
-            const cleanUrlSelf = window.location.pathname + (cleanSearchSelf ? ('?' + cleanSearchSelf) : '') + window.location.hash;
-            window.history.replaceState({}, document.title, cleanUrlSelf);
-            showToast('You cannot use your own affiliate code.', 'error');
-            return;
-        }
+        if (!getRefOwnerEmail(refCode)) return;
 
         localStorage.setItem(STORAGE_PENDING_REF, refCode);
         params.delete('ref');
         const cleanSearch = params.toString();
         const cleanUrl = window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '') + window.location.hash;
         window.history.replaceState({}, document.title, cleanUrl);
-        if (!currentCustomer) {
-            pendingRefAction = 'signup';
-        } else {
-            pendingRefAction = 'apply';
-        }
+        showToast('Affiliate code applied. You will get ' + AFFILIATE_RATE_LABEL + ' discount at checkout.', 'success');
     }
 
     function sanitizeCustomer(customer) {
@@ -557,67 +538,6 @@
         return window.supabase.createClient(APP_CONFIG.supabaseUrl, APP_CONFIG.supabaseAnonKey);
     })();
 
-    // ---- Product Catalog Sync (Supabase) ----
-    async function syncProductsToSupabase() {
-        if (!supabaseClient) return;
-        try {
-            // Upsert the full catalog as a single row
-            const { error } = await supabaseClient.from('product_catalog').upsert({
-                id: 'main',
-                data: products,
-                updated_at: new Date().toISOString(),
-            });
-            if (error) {
-                console.error('[Product Sync] Supabase upsert error:', error.message, error);
-            } else {
-                console.log('[Product Sync] Pushed', products.length, 'products to Supabase');
-            }
-        } catch (e) {
-            console.error('[Product Sync] Failed to push products:', e);
-        }
-    }
-
-    function pruneCartMissingProducts() {
-        const before = cart.length;
-        cart = cart.filter(item => products.some(p => p.id === item.id));
-        if (cart.length !== before) {
-            saveJSON(STORAGE_CART, cart);
-            updateCartBadge();
-            updateCheckoutState();
-            return true;
-        }
-        return false;
-    }
-
-    async function loadProductsFromSupabase() {
-        if (!supabaseClient) return false;
-        try {
-            const { data, error } = await supabaseClient
-                .from('product_catalog')
-                .select('data,updated_at')
-                .eq('id', 'main')
-                .single();
-            if (error) {
-                console.warn('[Product Sync] Supabase load error:', error.message, error);
-                return false;
-            }
-            if (!data || !Array.isArray(data.data)) return false;
-            products = data.data;
-            saveJSON(STORAGE_PRODUCTS, products);
-            pruneCartMissingProducts();
-            console.log('[Product Sync] Loaded', products.length, 'products from Supabase');
-            return true;
-        } catch (e) {
-            console.warn('[Product Sync] Failed to load products:', e);
-            return false;
-        }
-    }
-
-    function saveProducts() {
-        saveJSON(STORAGE_PRODUCTS, products);
-        syncProductsToSupabase();
-    }
-
     let pendingCartAction = null;
 
     // Migrate old cart items that lack cartKey
@@ -630,9 +550,8 @@
     });
     saveJSON(STORAGE_CART, cart);
 
-    // Seed demo products only on very first visit (localStorage key doesn't exist yet)
-    // Only save locally — never push seed to Supabase (admin controls the shared catalog)
-    if (localStorage.getItem(STORAGE_PRODUCTS) === null || (products.length > 0 && !products[0].variants)) {
+    // Seed demo products on first visit or if old data lacks variants
+    if (products.length === 0 || (products.length > 0 && !products[0].variants)) {
         products = getSeedProducts();
         saveJSON(STORAGE_PRODUCTS, products);
     }
@@ -1121,9 +1040,6 @@
         const cartEmpty = $('#cartEmpty');
         const cartSummary = $('#cartSummary');
 
-        // Remove stale cart items if product was deleted from the catalog.
-        pruneCartMissingProducts();
-
         if (cart.length === 0) {
             cartItems.innerHTML = '';
             cartEmpty.style.display = '';
@@ -1319,7 +1235,6 @@
     const customerLoginPassword = $('#customerLoginPassword');
     const customerSignupName = $('#customerSignupName');
     const customerSignupEmail = $('#customerSignupEmail');
-    const customerSignupReferralCode = $('#customerSignupReferralCode');
     const customerSignupPassword = $('#customerSignupPassword');
     const customerSignupConfirm = $('#customerSignupConfirm');
     const customerForgotPasswordBtn = $('#customerForgotPasswordBtn');
@@ -1341,117 +1256,19 @@
     const accountTotalBalance = $('#accountTotalBalance');
     const storeCreditTopupBtn = $('#storeCreditTopupBtn');
     const affiliateCodeInput = $('#affiliateCodeInput');
-    const affiliateApplyCodeInput = $('#affiliateApplyCodeInput');
-    const affiliateApplyCodeBtn = $('#affiliateApplyCodeBtn');
     const affiliateCreateBtn = $('#affiliateCreateBtn');
     const affiliateCodeBox = $('#affiliateCodeBox');
     const affiliateCodeValue = $('#affiliateCodeValue');
     const affiliateLinkBox = $('#affiliateLinkBox');
     const affiliateLinkValue = $('#affiliateLinkValue');
     const affiliateCopyBtn = $('#affiliateCopyBtn');
-    const affiliateDeleteBtn = $('#affiliateDeleteBtn');
-    const affiliateBalanceLarge = $('#affiliateBalanceLarge');
     const affiliateUsesCount = $('#affiliateUsesCount');
     const affiliateUniqueCount = $('#affiliateUniqueCount');
     const affiliateEarnedTotal = $('#affiliateEarnedTotal');
+    const affiliateChartBars = $('#affiliateChartBars');
     const affiliateWithdrawEmailBtn = $('#affiliateWithdrawEmailBtn');
     const affiliateTransferCreditBtn = $('#affiliateTransferCreditBtn');
     const affiliateActionMsg = $('#affiliateActionMsg');
-
-    /* -- Notification Bell -- */
-    const notifBellBtn = $('#notifBellBtn');
-    const notifBellBadge = $('#notifBellBadge');
-    const notifHistoryPanel = $('#notifHistoryPanel');
-    const notifHistoryList = $('#notifHistoryList');
-    const notifHistoryClose = $('#notifHistoryClose');
-    const NOTIF_MAX = 50;
-    let notifHistory = JSON.parse(localStorage.getItem('keyzes_notifHistory') || '[]').map(function(n) { n.time = new Date(n.time); return n; });
-    let notifUnread = Number(localStorage.getItem('keyzes_notifUnread') || '0');
-
-    // restore badge on load
-    if (notifUnread > 0 && notifBellBadge) {
-        notifBellBadge.textContent = notifUnread;
-        notifBellBadge.classList.add('show');
-    }
-
-    function saveNotifState() {
-        localStorage.setItem('keyzes_notifHistory', JSON.stringify(notifHistory));
-        localStorage.setItem('keyzes_notifUnread', notifUnread);
-    }
-
-    function addNotification(message, type) {
-        type = type || 'info';
-        notifHistory.unshift({ message: message, type: type, time: new Date() });
-        if (notifHistory.length > NOTIF_MAX) notifHistory = notifHistory.slice(0, NOTIF_MAX);
-        notifUnread++;
-        if (notifBellBadge) {
-            notifBellBadge.textContent = notifUnread;
-            notifBellBadge.classList.add('show');
-        }
-        saveNotifState();
-        renderNotifHistory();
-    }
-
-    function renderNotifHistory() {
-        if (!notifHistoryList) return;
-        if (notifHistory.length === 0) {
-            notifHistoryList.innerHTML = '<div class="notif-history-empty">No notifications yet</div>';
-            return;
-        }
-        notifHistoryList.innerHTML = notifHistory.map(function(n) {
-            var ago = getTimeAgo(n.time);
-            return '<div class="notif-history-item">' +
-                '<span class="notif-history-dot ' + n.type + '"></span>' +
-                '<span>' + escapeHTML(n.message) + '</span>' +
-                '<span class="notif-history-time">' + ago + '</span>' +
-            '</div>';
-        }).join('');
-    }
-
-    function getTimeAgo(date) {
-        var seconds = Math.floor((new Date() - date) / 1000);
-        if (seconds < 60) return 'just now';
-        var minutes = Math.floor(seconds / 60);
-        if (minutes < 60) return minutes + 'm ago';
-        var hours = Math.floor(minutes / 60);
-        if (hours < 24) return hours + 'h ago';
-        return Math.floor(hours / 24) + 'd ago';
-    }
-
-    function escapeHTML(str) {
-        var d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-    }
-
-    // render stored history on load
-    renderNotifHistory();
-
-    if (notifBellBtn) {
-        notifBellBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            var isOpen = notifHistoryPanel.classList.toggle('open');
-            if (isOpen) {
-                notifUnread = 0;
-                if (notifBellBadge) {
-                    notifBellBadge.textContent = '';
-                    notifBellBadge.classList.remove('show');
-                }
-                saveNotifState();
-                renderNotifHistory();
-            }
-        });
-    }
-    if (notifHistoryClose) {
-        notifHistoryClose.addEventListener('click', function() {
-            notifHistoryPanel.classList.remove('open');
-        });
-    }
-    document.addEventListener('click', function(e) {
-        if (notifHistoryPanel && !notifHistoryPanel.contains(e.target) && notifBellBtn && !notifBellBtn.contains(e.target)) {
-            notifHistoryPanel.classList.remove('open');
-        }
-    });
 
     function isCurrentUserAdmin() {
         return !!currentCustomer && normalizeEmail(currentCustomer.email) === ADMIN_EMAIL;
@@ -1463,17 +1280,6 @@
 
     function isValidEmail(value) {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
-    }
-
-    function validateReferralCodeForEmail(code, email) {
-        const cleaned = cleanAffiliateCode(code);
-        if (!cleaned) return { ok: false, message: 'Enter a referral code.' };
-        const ownerEmail = getRefOwnerEmail(cleaned);
-        if (!ownerEmail) return { ok: false, message: 'Referral code does not exist.' };
-        if (email && normalizeEmail(ownerEmail) === normalizeEmail(email)) {
-            return { ok: false, message: 'You cannot use your own affiliate code.' };
-        }
-        return { ok: true, cleaned, ownerEmail };
     }
 
     function setInlineFieldError(input, message) {
@@ -1631,7 +1437,7 @@
             if (!isSignedIn) {
                 checkoutNote.textContent = 'Sign in to place your order and save your cart.';
             } else if (pricing.activeRefCode) {
-                checkoutNote.textContent = AFFILIATE_DISCOUNT_LABEL + ' affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '.';
+                checkoutNote.textContent = AFFILIATE_RATE_LABEL + ' affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '.';
             } else {
                 checkoutNote.textContent = 'Order confirmation will be sent to ' + currentCustomer.email + '.';
             }
@@ -1648,6 +1454,65 @@
         if (!customer) return 'photos/keyzes-logo-no-backround.png';
         const profile = getCustomerProfile(customer.email, true);
         return profile.avatar || buildDefaultAvatar(customer.name || 'K');
+    }
+
+    function renderAffiliateChart(profile) {
+        if (!affiliateChartBars) return;
+        const days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() - i);
+            days.push(d);
+        }
+        const values = days.map(d => {
+            const start = d.getTime();
+            const end = start + 86400000;
+            return (profile.affiliateHistory || []).reduce((sum, row) => {
+                return row.createdAt >= start && row.createdAt < end ? sum + Number(row.commission || 0) : sum;
+            }, 0);
+        });
+
+        const candles = [];
+        let previousClose = Math.max(0.4, values[0] || 0.4);
+        for (let i = 0; i < values.length; i++) {
+            const drift = values[i] > 0 ? values[i] : (previousClose * (0.82 + (i % 3) * 0.08));
+            const open = previousClose;
+            const close = Math.max(0.2, drift);
+            const high = Math.max(open, close) * (1.08 + (i % 2) * 0.04);
+            const low = Math.max(0.1, Math.min(open, close) * (0.86 - (i % 2) * 0.04));
+            candles.push({ open, high, low, close });
+            previousClose = close;
+        }
+
+        const maxValue = Math.max(1, ...candles.map(c => c.high));
+        const minValue = Math.min(...candles.map(c => c.low));
+        const range = Math.max(0.0001, maxValue - minValue);
+        const chartW = 760;
+        const chartH = 260;
+        const padTop = 12;
+        const padBottom = 24;
+        const drawH = chartH - padTop - padBottom;
+        const colW = chartW / candles.length;
+        const bodyW = Math.max(8, Math.min(18, colW * 0.42));
+
+        const y = val => padTop + ((maxValue - val) / range) * drawH;
+        const svgCandles = candles.map((c, i) => {
+            const cx = (i * colW) + colW / 2;
+            const openY = y(c.open);
+            const closeY = y(c.close);
+            const highY = y(c.high);
+            const lowY = y(c.low);
+            const top = Math.min(openY, closeY);
+            const height = Math.max(2, Math.abs(openY - closeY));
+            const cls = c.close >= c.open ? 'affiliate-candle-up' : 'affiliate-candle-down';
+            return `
+                <line x1="${cx}" y1="${highY}" x2="${cx}" y2="${lowY}" class="${cls}" stroke-width="2" />
+                <rect x="${cx - bodyW / 2}" y="${top}" width="${bodyW}" height="${height}" rx="2" class="${cls}" />
+            `;
+        }).join('');
+
+        affiliateChartBars.innerHTML = `<svg viewBox="0 0 ${chartW} ${chartH}" preserveAspectRatio="none" aria-label="Affiliate earnings chart">${svgCandles}</svg>`;
     }
 
     function renderOrdersForCurrentCustomer() {
@@ -1693,7 +1558,6 @@
 
         if (storeCreditBalance) storeCreditBalance.textContent = formatMoney(profile.storeCredit) + ' EUR';
         if (affiliateBalance) affiliateBalance.textContent = formatMoney(profile.affiliateBalance) + ' EUR';
-        if (affiliateBalanceLarge) affiliateBalanceLarge.textContent = formatMoney(profile.affiliateBalance) + ' EUR';
         if (accountTotalBalance) {
             const total = Number(profile.storeCredit || 0) + Number(profile.affiliateBalance || 0);
             accountTotalBalance.textContent = formatMoney(total) + ' EUR';
@@ -1706,13 +1570,11 @@
         if (affiliateCodeBox) affiliateCodeBox.style.display = profile.affiliateCode ? '' : 'none';
         if (affiliateLinkBox) affiliateLinkBox.style.display = profile.affiliateCode ? '' : 'none';
         if (affiliateCodeValue) affiliateCodeValue.textContent = profile.affiliateCode || '-';
-        const affiliateCodeValueBottom = $('#affiliateCodeValueBottom');
-        if (affiliateCodeValueBottom) affiliateCodeValueBottom.textContent = profile.affiliateCode || '-';
         if (affiliateLinkValue) affiliateLinkValue.value = referralLink;
-        if (affiliateApplyCodeInput) affiliateApplyCodeInput.value = profile.referredBy || '';
         if (affiliateUsesCount) affiliateUsesCount.textContent = String(profile.affiliateUses || 0);
-        if (affiliateUniqueCount) affiliateUniqueCount.textContent = '5%';
+        if (affiliateUniqueCount) affiliateUniqueCount.textContent = String((profile.affiliateUniqueUsers || []).length);
         if (affiliateEarnedTotal) affiliateEarnedTotal.textContent = formatMoney(profile.affiliateEarningsTotal || 0) + ' EUR';
+        renderAffiliateChart(profile);
         renderOrdersForCurrentCustomer();
     }
 
@@ -1730,7 +1592,6 @@
         if (mobileAccountTrigger) mobileAccountTrigger.style.display = 'none';
         if ($('#adminTrigger')) $('#adminTrigger').style.display = isAdminCustomer ? '' : 'none';
         if (mobileAdminTrigger) mobileAdminTrigger.style.display = isAdminCustomer ? '' : 'none';
-        if (notifBellBtn) notifBellBtn.style.display = isSignedIn ? '' : 'none';
 
         $('#customerSessionName').textContent = displayName;
         $('#mobileSessionName').textContent = displayName;
@@ -1802,11 +1663,6 @@
             tab.classList.toggle('active', tab.dataset.authMode === (loginMode ? 'login' : 'signup'));
         });
         customerAuthTitle.textContent = loginMode ? 'Access Your Account' : 'Create Your Account';
-
-        if (!loginMode && customerSignupReferralCode) {
-            const pendingCode = cleanAffiliateCode(localStorage.getItem(STORAGE_PENDING_REF));
-            customerSignupReferralCode.value = pendingCode || customerSignupReferralCode.value || '';
-        }
     }
 
     function openCustomerAuth(mode, introText) {
@@ -2091,23 +1947,7 @@
         }
         const name = customerSignupName.value.trim();
         const email = normalizeEmail(customerSignupEmail.value);
-        const signupRefCode = cleanAffiliateCode(customerSignupReferralCode ? customerSignupReferralCode.value : '');
         const password = customerSignupPassword.value;
-
-        if (signupRefCode) {
-            const referralCheck = validateReferralCodeForEmail(signupRefCode, email);
-            if (!referralCheck.ok) {
-                // If the code came from a referral link, trust it even if not in local storage
-                const pendingRef = cleanAffiliateCode(localStorage.getItem(STORAGE_PENDING_REF));
-                if (pendingRef && pendingRef === signupRefCode) {
-                    // Code from URL — skip local validation
-                } else {
-                    customerSignupError.textContent = referralCheck.message;
-                    return;
-                }
-            }
-            localStorage.setItem(STORAGE_PENDING_REF, signupRefCode);
-        }
 
         customerSignupError.textContent = '';
         hideVerifyBox();
@@ -2231,8 +2071,6 @@
         customerSettingsView.style.display = 'none';
         siteFooter.style.display = 'none';
         showAdminSection('dashboard');
-        // Sync admin's product catalog to Supabase so all users see the same data
-        syncProductsToSupabase();
     }
 
     // Admin trigger (gear icon / nav link)
@@ -2315,14 +2153,8 @@
             if (!code) {
                 code = generateAffiliateCode(currentCustomer.name || 'KEYZES');
             }
-
-            const normalizedEmail = normalizeEmail(currentCustomer.email);
-            const codeOwner = affiliateCodes[code];
-            const userOwnsCode = codeOwner && normalizeEmail(codeOwner) === normalizedEmail;
-            const codeTakenByOther = codeOwner && !userOwnsCode;
-
-            if (codeTakenByOther) {
-                showToast('Affiliate code "' + code + '" is already taken by another creator. Try a different code.', 'error');
+            if (!profile.affiliateCode && affiliateCodes[code] && affiliateCodes[code] !== normalizeEmail(currentCustomer.email)) {
+                showToast('Affiliate code already taken. Try another.', 'error');
                 return;
             }
 
@@ -2330,60 +2162,11 @@
                 delete affiliateCodes[profile.affiliateCode];
             }
             profile.affiliateCode = code;
-            affiliateCodes[code] = normalizedEmail;
+            affiliateCodes[code] = normalizeEmail(currentCustomer.email);
             saveCustomerProgramState();
             if (affiliateCodeInput) affiliateCodeInput.value = code;
             renderAccountProgramPanels();
-            showToast('Affiliate code saved: ' + code + ' (' + AFFILIATE_COMMISSION_LABEL + ' commission)', 'success');
-        });
-    }
-
-    if (affiliateDeleteBtn) {
-        affiliateDeleteBtn.addEventListener('click', () => {
-            if (!currentCustomer) return;
-            const profile = getCustomerProfile(currentCustomer.email, true);
-            if (!profile.affiliateCode) return;
-
-            if (confirm('Delete affiliate code "' + profile.affiliateCode + '"? You will no longer earn commissions from this code.')) {
-                const oldCode = profile.affiliateCode;
-                delete affiliateCodes[oldCode];
-                profile.affiliateCode = '';
-                profile.referredBy = '';
-                saveCustomerProgramState();
-                updateCheckoutState();
-                renderAccountProgramPanels();
-                if (affiliateCodeInput) affiliateCodeInput.value = '';
-                showToast('Affiliate code deleted. Create a new one anytime.', 'info');
-            }
-        });
-    }
-
-    if (affiliateApplyCodeBtn) {
-        affiliateApplyCodeBtn.addEventListener('click', () => {
-            if (!currentCustomer) {
-                showToast('Please log in first.', 'error');
-                return;
-            }
-
-            const candidate = cleanAffiliateCode(affiliateApplyCodeInput ? affiliateApplyCodeInput.value : '');
-            const check = validateReferralCodeForEmail(candidate, currentCustomer.email);
-            if (!check.ok) {
-                if (affiliateActionMsg) affiliateActionMsg.textContent = check.message;
-                return;
-            }
-
-            const profile = getCustomerProfile(currentCustomer.email, true);
-            if (profile.referredBy && profile.referredBy !== check.cleaned) {
-                if (affiliateActionMsg) affiliateActionMsg.textContent = 'Referral code is already set for your account.';
-                return;
-            }
-
-            profile.referredBy = check.cleaned;
-            saveCustomerProgramState();
-            updateCheckoutState();
-            if (affiliateApplyCodeInput) affiliateApplyCodeInput.value = check.cleaned;
-            if (affiliateActionMsg) affiliateActionMsg.textContent = 'Referral code applied. You get ' + AFFILIATE_DISCOUNT_LABEL + ' discount.';
-            showToast('Referral code applied successfully.', 'success');
+            showToast('Affiliate code saved: ' + code + ' (' + AFFILIATE_RATE_LABEL + ' commission)', 'success');
         });
     }
 
@@ -2412,14 +2195,10 @@
             if (!currentCustomer) return;
             const profile = getCustomerProfile(currentCustomer.email, true);
             if (Number(profile.affiliateBalance || 0) < 1) {
-                var msg = 'Cashout becomes available when affiliate balance reaches at least 1.00 EUR.';
-                if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
-                showToast(msg, 'error');
+                if (affiliateActionMsg) affiliateActionMsg.textContent = 'Cashout becomes available when affiliate balance reaches at least 1.00 EUR.';
                 return;
             }
-            var msg = 'For cashout contact keyzes.store@gmail.com with your account email and requested amount.';
-            if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
-            showToast(msg, 'info');
+            if (affiliateActionMsg) affiliateActionMsg.textContent = 'For cashout contact keyzes.store@gmail.com with your account email and requested amount.';
         });
     }
 
@@ -2429,17 +2208,13 @@
             const profile = getCustomerProfile(currentCustomer.email, true);
             const amount = Number(profile.affiliateBalance || 0);
             if (amount <= 0) {
-                var msg = 'No affiliate balance available to transfer.';
-                if (affiliateActionMsg) affiliateActionMsg.textContent = msg;
-                showToast(msg, 'error');
+                if (affiliateActionMsg) affiliateActionMsg.textContent = 'No affiliate balance available to transfer.';
                 return;
             }
             profile.storeCredit = Number(profile.storeCredit || 0) + amount;
             profile.affiliateBalance = 0;
             saveCustomerProgramState();
-            var msg = 'Transferred ' + formatMoney(amount) + ' EUR to store credit.';
-            if (affiliateActionMsg) affiliateActionMsg.textContent = msg + ' This amount is no longer cashout eligible.';
-            showToast(msg, 'success');
+            if (affiliateActionMsg) affiliateActionMsg.textContent = 'Transferred ' + formatMoney(amount) + ' EUR to store credit. This amount is no longer cashout eligible.';
             renderAccountProgramPanels();
         });
     }
@@ -3109,7 +2884,7 @@
             const idx = products.findIndex(p => p.id === editId);
             if (idx !== -1) {
                 products[idx] = { ...products[idx], ...data };
-                saveProducts();
+                saveJSON(STORAGE_PRODUCTS, products);
                 showToast('Product updated successfully.', 'success');
             }
         } else {
@@ -3117,7 +2892,7 @@
             data.id = uid();
             data.createdAt = Date.now();
             products.push(data);
-            saveProducts();
+            saveJSON(STORAGE_PRODUCTS, products);
             showToast('Product added successfully.', 'success');
         }
 
@@ -3147,7 +2922,7 @@
             const id = e.target.dataset.delete;
             showConfirm('Delete Product?', 'This cannot be undone. The product will be removed permanently.', () => {
                 products = products.filter(p => p.id !== id);
-                saveProducts();
+                saveJSON(STORAGE_PRODUCTS, products);
                 showToast('Product deleted.', 'info');
                 // Re-render current section
                 const dashboardVisible = $('#adminDashboard').style.display !== 'none';
@@ -3202,7 +2977,7 @@
                 // Assign ids if missing
                 imported.forEach(p => { if (!p.id) p.id = uid(); });
                 products = imported;
-                saveProducts();
+                saveJSON(STORAGE_PRODUCTS, products);
                 showToast(`Imported ${imported.length} products.`, 'success');
                 renderAdminProducts();
                 renderDashboard();
@@ -3218,7 +2993,7 @@
     $('#clearAllData').addEventListener('click', () => {
         showConfirm('Clear All Products?', 'This will permanently delete every product. This cannot be undone.', () => {
             products = [];
-            saveProducts();
+            saveJSON(STORAGE_PRODUCTS, products);
             renderAdminProducts();
             renderDashboard();
             showToast('All products cleared.', 'info');
@@ -3252,7 +3027,6 @@
         toast.textContent = message;
         toast.className = 'toast toast-' + type + ' show';
         setTimeout(() => toast.classList.remove('show'), 3000);
-        if (typeof addNotification === 'function') addNotification(message, type);
     }
 
     // ===========================
@@ -3314,39 +3088,8 @@
     //  INIT
     // ===========================
 
-    // Try to load shared product catalog from Supabase, then render
-    // Supabase catalog always overrides local data
-    loadProductsFromSupabase().then(function(loaded) {
-        if (loaded) {
-            renderProducts();
-            try { renderAdminProducts(); } catch(e) {}
-            if (cartView.style.display !== 'none') renderCart();
-            updateCartBadge();
-        }
-    });
-
-    // Keep all sessions in sync without requiring a refresh.
-    setInterval(function() {
-        loadProductsFromSupabase().then(function(loaded) {
-            if (!loaded) return;
-            renderProducts();
-            try { renderAdminProducts(); } catch(e) {}
-            if (cartView.style.display !== 'none') renderCart();
-            updateCartBadge();
-        });
-    }, 4000);
-
     renderProducts();
     initializeCustomerAuth();
-
-    // Handle deferred referral link action after all DOM refs are ready
-    if (pendingRefAction === 'signup') {
-        showToast('Referral link detected. Sign up to activate your discount.', 'info');
-        setTimeout(function() { openCustomerAuth('signup', 'Create an account to activate your referral discount.'); }, 100);
-    } else if (pendingRefAction === 'apply') {
-        applyPendingReferralToCustomer(currentCustomer);
-        setTimeout(function() { showCustomerSettings(); }, 100);
-    }
 
     // If admin session was saved, keep auth state but don't auto-open panel
     // They can click the gear icon to open it
