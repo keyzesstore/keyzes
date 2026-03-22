@@ -2041,48 +2041,61 @@
 
     let currentOrderFilter = 'all';
     let cachedRemoteOrders = [];
-    let _orderPollInterval = null;
+    let _orderRealtimeChannel = null;
 
     const _orderStatusLabels = { processing: 'Processing', delivering: 'Delivering', delivered: 'Delivered' };
 
     function startOrderPolling() {
         stopOrderPolling();
         if (!currentCustomer || !isSupabaseConfigured()) return;
-        // Seed the baseline if not already loaded
-        if (!cachedRemoteOrders.length) {
-            fetchOrdersFromCloud(currentCustomer.email).then(orders => {
-                if (orders.length && !cachedRemoteOrders.length) cachedRemoteOrders = orders;
-            });
-        }
-        _orderPollInterval = setInterval(async () => {
-            if (!currentCustomer) { stopOrderPolling(); return; }
-            const fresh = await fetchOrdersFromCloud(currentCustomer.email);
-            if (!fresh.length) return;
-            for (const order of fresh) {
-                const prev = cachedRemoteOrders.find(o => o.id === order.id);
-                if (!prev) {
-                    // New order appeared
-                    showToast('New order received! #' + String(order.id).substring(0, 8), 'success');
-                } else {
-                    if (prev.delivery_status !== order.delivery_status) {
-                        const label = _orderStatusLabels[order.delivery_status] || order.delivery_status;
-                        showToast('Order #' + String(order.id).substring(0, 8) + ' is now ' + label + '.', 'info');
+        const email = currentCustomer.email.toLowerCase();
+        // Seed baseline
+        fetchOrdersFromCloud(email).then(orders => {
+            if (orders.length) cachedRemoteOrders = orders;
+        });
+        // Subscribe to real-time changes on the orders table for this customer
+        _orderRealtimeChannel = supabaseClient
+            .channel('customer-orders-' + email)
+            .on('postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'orders', filter: 'customer_email=eq.' + email },
+                (payload) => {
+                    const order = payload.new;
+                    const prev = cachedRemoteOrders.find(o => o.id === order.id);
+                    if (prev) {
+                        if (prev.delivery_status !== order.delivery_status) {
+                            const label = _orderStatusLabels[order.delivery_status] || order.delivery_status;
+                            showToast('Order #' + String(order.id).substring(0, 8) + ' is now ' + label + '.', 'info');
+                        }
+                        if (prev.subscription_status !== order.subscription_status && order.subscription_status === 'cancelled') {
+                            showToast('Subscription cancelled for order #' + String(order.id).substring(0, 8) + '.', 'info');
+                        }
                     }
-                    if (prev.subscription_status !== order.subscription_status && order.subscription_status === 'cancelled') {
-                        showToast('Subscription cancelled for order #' + String(order.id).substring(0, 8) + '.', 'info');
+                    // Update cache
+                    cachedRemoteOrders = cachedRemoteOrders.map(o => o.id === order.id ? { ...o, ...order } : o);
+                    if (customerOrdersList && customerSettingsView && customerSettingsView.style.display !== 'none') {
+                        renderOrdersForCurrentCustomer();
                     }
                 }
-            }
-            cachedRemoteOrders = fresh;
-            // Re-render if customer orders view is visible
-            if (customerOrdersList && customerSettingsView && customerSettingsView.style.display !== 'none') {
-                renderOrdersForCurrentCustomer();
-            }
-        }, 30000);
+            )
+            .on('postgres_changes',
+                { event: 'INSERT', schema: 'public', table: 'orders', filter: 'customer_email=eq.' + email },
+                (payload) => {
+                    const order = payload.new;
+                    showToast('New order received! #' + String(order.id).substring(0, 8), 'success');
+                    cachedRemoteOrders = [order, ...cachedRemoteOrders];
+                    if (customerOrdersList && customerSettingsView && customerSettingsView.style.display !== 'none') {
+                        renderOrdersForCurrentCustomer();
+                    }
+                }
+            )
+            .subscribe();
     }
 
     function stopOrderPolling() {
-        if (_orderPollInterval) { clearInterval(_orderPollInterval); _orderPollInterval = null; }
+        if (_orderRealtimeChannel) {
+            supabaseClient.removeChannel(_orderRealtimeChannel);
+            _orderRealtimeChannel = null;
+        }
     }
 
     async function fetchOrdersFromCloud(email) {
