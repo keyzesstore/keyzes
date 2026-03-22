@@ -683,14 +683,30 @@
             return { ok: false, reason: 'Authentication is not configured for checkout.' };
         }
 
+        let accessToken = latestAccessToken || '';
+
         const sessionResult = await supabaseClient.auth.getSession();
         const sessionError = sessionResult && sessionResult.error;
         const session = sessionResult && sessionResult.data && sessionResult.data.session;
-        if (sessionError || !session || !session.access_token) {
+        if (!sessionError && session && session.access_token) {
+            accessToken = session.access_token;
+            latestAccessToken = accessToken;
+        }
+
+        if (!accessToken) {
+            const refreshResult = await supabaseClient.auth.refreshSession();
+            const refreshedSession = refreshResult && refreshResult.data && refreshResult.data.session;
+            if (refreshedSession && refreshedSession.access_token) {
+                accessToken = refreshedSession.access_token;
+                latestAccessToken = accessToken;
+            }
+        }
+
+        if (!accessToken) {
             return { ok: false, reason: 'Your login session expired. Please log in again.' };
         }
 
-        const authHeader = 'Bearer ' + session.access_token;
+        const authHeader = 'Bearer ' + accessToken;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
@@ -750,6 +766,7 @@
     let customerOrders = loadJSON(STORAGE_CUSTOMER_ORDERS, {});
     let affiliateCodes = loadJSON(STORAGE_AFFILIATE_CODES, {});
     let currentCustomer = null;
+    let latestAccessToken = '';
     let pendingVerificationEmail = '';
 
     const supabaseClient = (function createSupabaseClient() {
@@ -2037,14 +2054,18 @@
     async function syncCustomerFromSession() {
         if (!authReady()) {
             setCurrentCustomer(null);
+            latestAccessToken = '';
             return;
         }
         const { data, error } = await supabaseClient.auth.getSession();
         if (error) {
             setCurrentCustomer(null);
+            latestAccessToken = '';
             return;
         }
-        const user = data && data.session && data.session.user;
+        const activeSession = data && data.session;
+        latestAccessToken = activeSession && activeSession.access_token ? activeSession.access_token : '';
+        const user = activeSession && activeSession.user;
         setCurrentCustomer(mapSupabaseUserToCustomer(user));
     }
 
@@ -2065,6 +2086,7 @@
         await syncCustomerFromSession();
         if (!isConfirmFlow) handleAuthCallbackFeedback();
         supabaseClient.auth.onAuthStateChange((_event, session) => {
+            latestAccessToken = session && session.access_token ? session.access_token : '';
             const user = session && session.user;
             setCurrentCustomer(mapSupabaseUserToCustomer(user));
         });
