@@ -1273,6 +1273,106 @@
     const affiliateTransferCreditBtn = $('#affiliateTransferCreditBtn');
     const affiliateActionMsg = $('#affiliateActionMsg');
 
+    /* -- Notification Bell -- */
+    const notifBellBtn = $('#notifBellBtn');
+    const notifBellBadge = $('#notifBellBadge');
+    const notifHistoryPanel = $('#notifHistoryPanel');
+    const notifHistoryList = $('#notifHistoryList');
+    const notifHistoryClose = $('#notifHistoryClose');
+    const NOTIF_MAX = 50;
+    let notifHistory = JSON.parse(localStorage.getItem('keyzes_notifHistory') || '[]').map(n => ({
+        message: n.message,
+        type: n.type,
+        time: new Date(n.time),
+    }));
+    let notifUnread = Number(localStorage.getItem('keyzes_notifUnread') || '0');
+
+    if (notifUnread > 0 && notifBellBadge) {
+        notifBellBadge.textContent = notifUnread;
+        notifBellBadge.classList.add('show');
+    }
+
+    function saveNotifState() {
+        localStorage.setItem('keyzes_notifHistory', JSON.stringify(notifHistory));
+        localStorage.setItem('keyzes_notifUnread', String(notifUnread));
+    }
+
+    function getTimeAgo(date) {
+        const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+        if (seconds < 60) return 'just now';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return minutes + 'm ago';
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return hours + 'h ago';
+        return Math.floor(hours / 24) + 'd ago';
+    }
+
+    function addNotification(message, type = 'info') {
+        notifHistory.unshift({ message, type, time: new Date() });
+        if (notifHistory.length > NOTIF_MAX) notifHistory = notifHistory.slice(0, NOTIF_MAX);
+        notifUnread += 1;
+        if (notifBellBadge) {
+            notifBellBadge.textContent = notifUnread;
+            notifBellBadge.classList.add('show');
+        }
+        saveNotifState();
+        renderNotifHistory();
+    }
+
+    function renderNotifHistory() {
+        if (!notifHistoryList) return;
+        if (notifHistory.length === 0) {
+            notifHistoryList.innerHTML = '<div class="notif-history-empty">No notifications yet</div>';
+            return;
+        }
+        notifHistoryList.innerHTML = notifHistory.map(n => {
+            const ago = getTimeAgo(n.time);
+            const safeMessage = escapeHtml(String(n.message || ''));
+            const safeType = /^(success|error|info|warning)$/.test(String(n.type || '')) ? n.type : 'info';
+            return '<div class="notif-history-item">'
+                + '<span class="notif-history-dot ' + safeType + '"></span>'
+                + '<span>' + safeMessage + '</span>'
+                + '<span class="notif-history-time">' + ago + '</span>'
+                + '</div>';
+        }).join('');
+    }
+
+    renderNotifHistory();
+
+    if (notifBellBtn) {
+        notifBellBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!notifHistoryPanel) return;
+            const isOpen = notifHistoryPanel.classList.toggle('open');
+            if (isOpen) {
+                notifUnread = 0;
+                if (notifBellBadge) {
+                    notifBellBadge.textContent = '';
+                    notifBellBadge.classList.remove('show');
+                }
+                saveNotifState();
+                renderNotifHistory();
+            }
+        });
+    }
+
+    if (notifHistoryClose) {
+        notifHistoryClose.addEventListener('click', () => {
+            if (notifHistoryPanel) notifHistoryPanel.classList.remove('open');
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (
+            notifHistoryPanel
+            && !notifHistoryPanel.contains(e.target)
+            && notifBellBtn
+            && !notifBellBtn.contains(e.target)
+        ) {
+            notifHistoryPanel.classList.remove('open');
+        }
+    });
+
     function isCurrentUserAdmin() {
         return !!currentCustomer && normalizeEmail(currentCustomer.email) === ADMIN_EMAIL;
     }
@@ -1761,13 +1861,6 @@
         if (!button) return;
         button.addEventListener('click', () => openCustomerAuth(mode, 'Sign in or create an account to continue shopping on Keyzes.'));
     });
-
-    const notificationsBtn = $('#notificationsBtn');
-    if (notificationsBtn) {
-        notificationsBtn.addEventListener('click', () => {
-            showToast('Notifications center is coming soon.', 'info');
-        });
-    }
 
     [$('#customerLogoutBtn'), $('#mobileLogoutBtn')].forEach(button => {
         if (!button) return;
@@ -3038,6 +3131,7 @@
         const toast = $('#toast');
         toast.textContent = message;
         toast.className = 'toast toast-' + type + ' show';
+        addNotification(message, type);
         setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
