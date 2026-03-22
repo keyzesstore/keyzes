@@ -40,7 +40,7 @@
         return !!supabaseClient;
     }
 
-    let lastCatalogFingerprint = '';
+    let lastCatalogFingerprint = null;
 
     async function fetchProductCatalogFromCloud() {
         if (!isSupabaseConfigured()) return null;
@@ -65,7 +65,7 @@
         try {
             const payload = await fetchProductCatalogFromCloud();
             if (payload && Array.isArray(payload.items)) {
-                const changed = payload.fingerprint !== lastCatalogFingerprint;
+                const changed = lastCatalogFingerprint === null || payload.fingerprint !== lastCatalogFingerprint;
                 lastCatalogFingerprint = payload.fingerprint;
                 if (!changed) return false;
                 products = payload.items;
