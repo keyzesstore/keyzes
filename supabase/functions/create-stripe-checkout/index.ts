@@ -15,6 +15,53 @@ function moneyToCents(value: unknown) {
     return Math.round(num * 100);
 }
 
+function sanitizePaymentMethodTypes(value: unknown) {
+    const defaults = ['card', 'link'];
+    const allowed = new Set([
+        'acss_debit',
+        'affirm',
+        'afterpay_clearpay',
+        'alipay',
+        'alma',
+        'amazon_pay',
+        'au_becs_debit',
+        'bacs_debit',
+        'bancontact',
+        'blik',
+        'card',
+        'cashapp',
+        'eps',
+        'giropay',
+        'grabpay',
+        'ideal',
+        'klarna',
+        'konbini',
+        'link',
+        'oxxo',
+        'p24',
+        'paypal',
+        'promptpay',
+        'revolut_pay',
+        'sepa_debit',
+        'sofort',
+        'swish',
+        'twint',
+        'us_bank_account',
+        'wechat_pay',
+    ]);
+
+    if (!Array.isArray(value)) return defaults;
+
+    const cleaned = value
+        .map((method) => String(method || '').trim().toLowerCase())
+        .filter((method) => allowed.has(method));
+
+    const unique = [...new Set(cleaned)];
+    if (!unique.length) return defaults;
+    if (!unique.includes('card')) unique.unshift('card');
+    return unique;
+}
+
 Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -43,6 +90,7 @@ Deno.serve(async (req) => {
         const cancelUrl = String(body.cancelUrl || '').trim();
         const discountAmount = Number(body.discountAmount || 0);
         const affiliateCode = String(body.affiliateCode || '').trim();
+        const paymentMethodTypes = sanitizePaymentMethodTypes(body.paymentMethodTypes);
 
         if (!customerEmail || !items.length || !successUrl || !cancelUrl) {
             return Response.json(
@@ -93,6 +141,7 @@ Deno.serve(async (req) => {
             mode: 'payment',
             customer_email: customerEmail,
             line_items: lineItems,
+            payment_method_types: paymentMethodTypes,
             success_url: successUrl,
             cancel_url: cancelUrl,
             metadata: {

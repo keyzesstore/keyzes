@@ -315,6 +315,21 @@
         return '';
     }
 
+    function getStripePaymentMethodTypes() {
+        const defaults = ['card', 'link'];
+        const configured = APP_CONFIG.stripePaymentMethodTypes;
+        if (!Array.isArray(configured)) return defaults;
+
+        const cleaned = configured
+            .map(method => String(method || '').trim().toLowerCase())
+            .filter(Boolean);
+
+        const unique = [...new Set(cleaned)];
+        if (!unique.length) return defaults;
+        if (!unique.includes('card')) unique.unshift('card');
+        return unique;
+    }
+
     function getAuthRedirectUrl() {
         if (isConfigured(APP_CONFIG.authRedirectUrl)) {
             return APP_CONFIG.authRedirectUrl.trim();
@@ -655,6 +670,7 @@
             discountAmount: Number(pricing.discountAmount || 0),
             total: Number(pricing.total || 0),
             affiliateCode: pricing.activeRefCode || '',
+            paymentMethodTypes: getStripePaymentMethodTypes(),
             successUrl: returnBase + '?stripe=success',
             cancelUrl: returnBase + '?stripe=cancel',
         };
@@ -1739,9 +1755,9 @@
             if (!isSignedIn) {
                 checkoutNote.textContent = 'Sign in to place your order and save your cart.';
             } else if (pricing.activeRefCode) {
-                checkoutNote.textContent = AFFILIATE_RATE_LABEL + ' affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '.';
+                checkoutNote.textContent = AFFILIATE_RATE_LABEL + ' affiliate discount active (' + pricing.activeRefCode + '). Confirmation goes to ' + currentCustomer.email + '. Pay with card, Apple Pay, Google Pay, and more when supported.';
             } else {
-                checkoutNote.textContent = 'Order confirmation will be sent to ' + currentCustomer.email + '.';
+                checkoutNote.textContent = 'Order confirmation will be sent to ' + currentCustomer.email + '. Pay with card, Apple Pay, Google Pay, and more when supported.';
             }
         }
     }

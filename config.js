@@ -15,6 +15,11 @@ window.KEYZES_CONFIG = {
     // Example: https://YOUR_PROJECT_REF.supabase.co/functions/v1/create-stripe-checkout
     stripeCheckoutFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/create-stripe-checkout',
 
+    // Optional: hosted checkout payment method types.
+    // Keep "card" for Apple Pay / Google Pay wallet support.
+    // Example: ['card', 'link', 'cashapp', 'klarna', 'paypal']
+    stripePaymentMethodTypes: ['card', 'link'],
+
     // Optional: endpoint that deletes the authenticated customer account
     accountDeleteFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/delete-account'
 };
