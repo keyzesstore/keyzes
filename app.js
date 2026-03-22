@@ -1360,7 +1360,14 @@
         const excludedMap = {};
         compat.excluded.forEach(e => { excludedMap[e.cartKey] = e; });
 
-        cartItems.innerHTML = cart.map(item => {
+        // Sort: compatible items first, excluded (red) items at the bottom
+        const sortedCart = [...cart].sort((a, b) => {
+            const aExcl = excludedMap[a.cartKey] ? 1 : 0;
+            const bExcl = excludedMap[b.cartKey] ? 1 : 0;
+            return aExcl - bExcl;
+        });
+
+        cartItems.innerHTML = sortedCart.map(item => {
             const p = products.find(pr => pr.id === item.id);
             if (!p) return '';
             const imgSrc = p.image || noImgSvg;
