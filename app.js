@@ -1696,6 +1696,7 @@
         message: n.message,
         type: n.type,
         time: new Date(n.time),
+        orderId: n.orderId || null,
     }));
     let notifUnread = Number(localStorage.getItem('keyzes_notifUnread') || '0');
 
@@ -1719,8 +1720,8 @@
         return Math.floor(hours / 24) + 'd ago';
     }
 
-    function addNotification(message, type = 'info') {
-        notifHistory.unshift({ message, type, time: new Date() });
+    function addNotification(message, type = 'info', orderId = null) {
+        notifHistory.unshift({ message, type, time: new Date(), orderId: orderId || null });
         if (notifHistory.length > NOTIF_MAX) notifHistory = notifHistory.slice(0, NOTIF_MAX);
         notifUnread += 1;
         if (notifBellBadge) {
@@ -1741,12 +1742,31 @@
             const ago = getTimeAgo(n.time);
             const safeMessage = escapeHtml(String(n.message || ''));
             const safeType = /^(success|error|info|warning)$/.test(String(n.type || '')) ? n.type : 'info';
-            return '<div class="notif-history-item">'
+            const clickable = n.orderId ? ' notif-clickable' : '';
+            const dataAttr = n.orderId ? ' data-order-id="' + escapeAttr(String(n.orderId)) + '"' : '';
+            return '<div class="notif-history-item' + clickable + '"' + dataAttr + '>'
                 + '<span class="notif-history-dot ' + safeType + '"></span>'
                 + '<span>' + safeMessage + '</span>'
                 + '<span class="notif-history-time">' + ago + '</span>'
                 + '</div>';
         }).join('');
+        // Bind click handlers for order notifications
+        notifHistoryList.querySelectorAll('.notif-clickable').forEach(el => {
+            el.addEventListener('click', () => {
+                const oid = el.dataset.orderId;
+                if (!oid) return;
+                if (notifHistoryPanel) notifHistoryPanel.classList.remove('open');
+                navigateToOrderDetail(oid);
+            });
+        });
+    }
+
+    function navigateToOrderDetail(orderId) {
+        if (!currentCustomer) return;
+        showCustomerSettings();
+        showAccountSection('orders');
+        renderOrdersForCurrentCustomer();
+        openOrderDetail(orderId);
     }
 
     renderNotifHistory();
@@ -2081,7 +2101,7 @@
                 { event: 'INSERT', schema: 'public', table: 'orders', filter: 'customer_email=eq.' + email },
                 (payload) => {
                     const order = payload.new;
-                    showToast('New order received! #' + String(order.id).substring(0, 8), 'success');
+                    showToast('New order received! #' + String(order.id).substring(0, 8), 'success', order.id);
                     cachedRemoteOrders = [order, ...cachedRemoteOrders];
                     if (customerOrdersList && customerSettingsView && customerSettingsView.style.display !== 'none') {
                         renderOrdersForCurrentCustomer();
@@ -4084,12 +4104,25 @@
     });
 
     // ---- Toast ----
-    function showToast(message, type = 'info') {
+    let _toastTimeout = null;
+    function showToast(message, type = 'info', orderId = null) {
         const toast = $('#toast');
         toast.textContent = message;
         toast.className = 'toast toast-' + type + ' show';
-        addNotification(message, type);
-        setTimeout(() => toast.classList.remove('show'), 3000);
+        if (orderId) {
+            toast.classList.add('toast-clickable');
+            toast.onclick = () => {
+                toast.classList.remove('show');
+                if (_toastTimeout) clearTimeout(_toastTimeout);
+                navigateToOrderDetail(orderId);
+            };
+        } else {
+            toast.classList.remove('toast-clickable');
+            toast.onclick = null;
+        }
+        addNotification(message, type, orderId);
+        if (_toastTimeout) clearTimeout(_toastTimeout);
+        _toastTimeout = setTimeout(() => { toast.classList.remove('show'); toast.onclick = null; }, 3000);
     }
 
     // ===========================

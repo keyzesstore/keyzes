@@ -3676,6 +3676,13 @@ body.auth-open {
 .toast.show {
     transform: translateY(0);
     opacity: 1;
+    pointer-events: auto;
+}
+.toast.toast-clickable {
+    cursor: pointer;
+}
+.toast.toast-clickable:hover {
+    filter: brightness(1.15);
 }
 
 .toast.toast-success {
@@ -3688,6 +3695,13 @@ body.auth-open {
 
 .toast.toast-info {
     border-left: 4px solid var(--cyan);
+}
+.notif-clickable {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.notif-clickable:hover {
+    background: rgba(255,255,255,0.06);
 }
 
 /* === Admin trigger (gear icon in nav) === */
