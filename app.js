@@ -597,6 +597,63 @@
         return { ok: true, orderId };
     }
 
+    async function createStripeCheckoutSession(customer, cartItems, pricing) {
+        if (!isConfigured(APP_CONFIG.stripeCheckoutFunctionUrl)) {
+            return { ok: false, reason: 'Stripe checkout function is not configured yet.' };
+        }
+
+        const checkoutItems = cartItems.map(item => {
+            const product = products.find(pr => pr.id === item.id);
+            const variant = product && product.variants && product.variants[item.variantIdx || 0];
+            return {
+                productId: item.id,
+                title: product ? product.title : 'Product',
+                variantName: variant ? variant.name : '',
+                qty: Number(item.qty || 1),
+                unitPrice: Number(getItemPrice(item) || 0),
+            };
+        });
+
+        const returnBase = window.location.origin + window.location.pathname;
+        const payload = {
+            customerEmail: customer.email,
+            customerName: customer.name || '',
+            items: checkoutItems,
+            subtotal: Number(pricing.subtotal || 0),
+            discountAmount: Number(pricing.discountAmount || 0),
+            total: Number(pricing.total || 0),
+            affiliateCode: pricing.activeRefCode || '',
+            successUrl: returnBase + '?stripe=success',
+            cancelUrl: returnBase + '?stripe=cancel',
+        };
+
+        let authHeader = 'Bearer ' + APP_CONFIG.supabaseAnonKey;
+        if (authReady()) {
+            const { data } = await supabaseClient.auth.getSession();
+            const token = data && data.session && data.session.access_token;
+            if (token) authHeader = 'Bearer ' + token;
+        }
+
+        const response = await fetch(APP_CONFIG.stripeCheckoutFunctionUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: authHeader,
+                apikey: APP_CONFIG.supabaseAnonKey,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            return { ok: false, reason: result.error || 'Could not start Stripe checkout.' };
+        }
+        if (!result.url) {
+            return { ok: false, reason: 'Stripe did not return a checkout URL.' };
+        }
+        return { ok: true, url: result.url };
+    }
+
     // ---- State ----
     let products = loadJSON(STORAGE_PRODUCTS, []);
     let siteSettings = loadJSON(STORAGE_SETTINGS, {
@@ -1210,6 +1267,21 @@
 
         const pricing = getCheckoutPricing(currentCustomer, cart);
         const cartSnapshot = cart.map(item => ({ ...item }));
+
+        if (isConfigured(APP_CONFIG.stripeCheckoutFunctionUrl)) {
+            const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
+            checkoutBtn.textContent = originalLabel;
+            updateCheckoutState();
+
+            if (!stripeResult.ok) {
+                showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
+                return;
+            }
+
+            window.location.href = stripeResult.url;
+            return;
+        }
+
         const result = await createRemoteOrder(currentCustomer.email, cart, pricing);
         checkoutBtn.textContent = originalLabel;
         updateCheckoutState();

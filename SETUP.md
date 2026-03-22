@@ -54,6 +54,7 @@ Deploy:
 ```bash
 supabase functions deploy send-order-email
 supabase functions deploy delete-account
+supabase functions deploy create-stripe-checkout
 ```
 
 Set function secrets:
@@ -64,6 +65,7 @@ supabase secrets set FROM_EMAIL=orders@keyzes.com
 supabase secrets set STORE_NAME=Keyzes
 supabase secrets set SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
+supabase secrets set STRIPE_SECRET_KEY=sk_live_xxxxx
 ```
 
 Notes for `delete-account`:
@@ -89,6 +91,7 @@ Edit `config.js` and set:
 - `supabaseAnonKey`: from Supabase API settings
 - `authRedirectUrl`: your production site URL (used in email verification links), e.g. `https://keyzes.com`
 - `orderEmailFunctionUrl`: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-order-email`
+- `stripeCheckoutFunctionUrl`: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/create-stripe-checkout`
 - `accountDeleteFunctionUrl` (optional): `https://YOUR_PROJECT_REF.supabase.co/functions/v1/delete-account`
 
 Important:
@@ -169,9 +172,9 @@ To make verification emails look better:
 - Customer must sign up/login using Supabase Auth.
 - Signup sends verification email; UI includes a "Resend verification email" action.
 - Checkout uses the logged-in customer email automatically.
-- Creates `orders` + `order_items` in Supabase.
-- Calls `send-order-email` function.
-- Clears cart after successful order creation.
+- If `stripeCheckoutFunctionUrl` is configured, checkout redirects to Stripe hosted checkout.
+- If Stripe checkout is not configured, checkout falls back to direct `orders` + `order_items` creation in Supabase.
+- Calls `send-order-email` function in the non-Stripe fallback flow.
 
 ## 10.1) Admin + account behavior
 
