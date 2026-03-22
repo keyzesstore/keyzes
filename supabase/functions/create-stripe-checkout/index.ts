@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
                 const qty = Math.max(1, Number(item.qty || 1));
                 const title = String(item.title || 'Product').trim();
                 const variantName = String(item.variantName || '').trim();
+                const productId = String(item.productId || '').trim();
                 const unitAmount = moneyToCents(item.unitPrice);
 
                 if (!title || unitAmount <= 0) return null;
@@ -71,6 +72,10 @@ Deno.serve(async (req) => {
                         unit_amount: unitAmount,
                         product_data: {
                             name: variantName ? `${title} (${variantName})` : title,
+                            metadata: {
+                                product_id: productId,
+                                variant_name: variantName,
+                            },
                         },
                     },
                 };

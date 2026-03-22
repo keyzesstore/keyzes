@@ -319,6 +319,27 @@
         }
     }
 
+    function handleStripeCheckoutFeedback() {
+        const params = new URLSearchParams(window.location.search || '');
+        const stripeStatus = params.get('stripe');
+        if (!stripeStatus) return;
+
+        if (stripeStatus === 'success') {
+            cart = [];
+            saveJSON(STORAGE_CART, cart);
+            updateCartBadge();
+            if (typeof renderCart === 'function') renderCart();
+            showToast('Payment successful. Thank you for your order!', 'success');
+        } else if (stripeStatus === 'cancel') {
+            showToast('Stripe checkout was canceled.', 'info');
+        }
+
+        params.delete('stripe');
+        const cleanSearch = params.toString();
+        const cleanUrl = window.location.origin + window.location.pathname + (cleanSearch ? ('?' + cleanSearch) : '');
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+
     function showEmailConfirmError(msg) {
         const overlay = document.getElementById('emailConfirmOverlay');
         const loading = document.getElementById('emailConfirmLoading');
@@ -3503,6 +3524,7 @@
     (async function initializeApp() {
         await loadSharedProductCatalog();
         renderProducts();
+        handleStripeCheckoutFeedback();
         setupLocalCatalogSync();
         startCatalogPollingFallback();
         subscribeToCatalogRealtime();

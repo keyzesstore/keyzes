@@ -55,6 +55,7 @@ Deploy:
 supabase functions deploy send-order-email
 supabase functions deploy delete-account
 supabase functions deploy create-stripe-checkout
+supabase functions deploy stripe-webhook
 ```
 
 Set function secrets:
@@ -66,7 +67,16 @@ supabase secrets set STORE_NAME=Keyzes
 supabase secrets set SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
 supabase secrets set STRIPE_SECRET_KEY=sk_live_xxxxx
+supabase secrets set STRIPE_WEBHOOK_SECRET=whsec_xxxxx
 ```
+
+Configure Stripe webhook endpoint:
+
+1. Stripe Dashboard -> Developers -> Webhooks -> Add endpoint.
+2. Endpoint URL: `https://YOUR_PROJECT_REF.supabase.co/functions/v1/stripe-webhook`
+3. Select event: `checkout.session.completed`
+4. Save endpoint, then copy the signing secret (`whsec_...`).
+5. Set the secret in Supabase using `STRIPE_WEBHOOK_SECRET` above.
 
 Notes for `delete-account`:
 - This function uses `SUPABASE_SERVICE_ROLE_KEY` to delete the authenticated user.
