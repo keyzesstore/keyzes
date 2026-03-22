@@ -1762,6 +1762,13 @@
         button.addEventListener('click', () => openCustomerAuth(mode, 'Sign in or create an account to continue shopping on Keyzes.'));
     });
 
+    const notificationsBtn = $('#notificationsBtn');
+    if (notificationsBtn) {
+        notificationsBtn.addEventListener('click', () => {
+            showToast('Notifications center is coming soon.', 'info');
+        });
+    }
+
     [$('#customerLogoutBtn'), $('#mobileLogoutBtn')].forEach(button => {
         if (!button) return;
         button.addEventListener('click', async () => {

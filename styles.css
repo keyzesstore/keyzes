@@ -314,6 +314,12 @@ a {
     margin-bottom: 12px;
 }
 
+.mobile-top-search {
+    display: none;
+    position: relative;
+    margin-bottom: 14px;
+}
+
 .mobile-search-wrapper .search-icon {
     left: 14px;
 }
@@ -333,6 +339,16 @@ a {
 
 .mobile-nav-link.active {
     color: var(--orange);
+}
+
+.nav-bell-btn {
+    display: none;
+    padding: 8px 10px;
+}
+
+.nav-bell-btn svg {
+    width: 18px;
+    height: 18px;
 }
 
 /* === Hero === */
@@ -1344,21 +1360,18 @@ a {
     }
 
     .logo-img {
-        height: 86px;
+        height: 108px;
     }
 
     .search-wrapper {
-        display: block;
-        order: 3;
-        flex: 1 1 100%;
-        max-width: none;
+        display: none;
     }
 
     .nav-links {
         display: flex;
         order: 2;
         margin-left: auto;
-        gap: 6px;
+        gap: 8px;
         min-width: 0;
         flex-wrap: wrap;
         justify-content: flex-end;
@@ -1373,9 +1386,9 @@ a {
     }
 
     .nav-link {
-        padding: 7px 10px;
-        font-size: 12px;
-        gap: 4px;
+        padding: 8px 12px;
+        font-size: 13px;
+        gap: 5px;
         white-space: nowrap;
     }
 
@@ -1394,33 +1407,47 @@ a {
     }
 
     .nav-auth-btn {
-        padding: 7px 10px;
-        font-size: 12px;
+        padding: 8px 12px;
+        font-size: 13px;
         white-space: nowrap;
     }
 
     .customer-session-account-btn {
-        gap: 6px;
-        padding: 5px 8px;
-        max-width: 124px;
+        gap: 8px;
+        padding: 7px 10px;
+        max-width: 150px;
     }
 
     .customer-session-name {
-        font-size: 12px;
+        font-size: 13px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
+    .nav-bell-btn {
+        display: inline-flex;
+        padding: 8px 10px;
+    }
+
+    .nav-bell-btn svg {
+        width: 18px;
+        height: 18px;
+    }
+
     .search-input {
-        padding: 9px 12px 9px 36px;
-        font-size: 13px;
+        padding: 10px 14px 10px 38px;
+        font-size: 14px;
     }
 
     .search-icon {
         left: 12px;
         width: 16px;
         height: 16px;
+    }
+
+    .mobile-top-search {
+        display: block;
     }
 
     /* --- Hero --- */
@@ -1653,17 +1680,21 @@ a {
     }
 
     .logo-img {
-        height: 76px;
+        height: 96px;
     }
 
     .nav-link {
-        padding: 6px 8px;
-        font-size: 11px;
+        padding: 8px 10px;
+        font-size: 12px;
     }
 
     .nav-auth-btn {
-        padding: 6px 8px;
-        font-size: 11px;
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .customer-session-account-btn {
+        max-width: 136px;
     }
 
     .hero {
