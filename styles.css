@@ -4833,20 +4833,6 @@ body.auth-open {
     line-height: 1.6;
 }
 
-.btn-cancel-sub {
-    background: #e53e3e;
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    transition: background 0.2s;
-}
-.btn-cancel-sub:hover { background: #c53030; }
-.btn-cancel-sub:disabled { opacity: 0.6; cursor: not-allowed; }
-
 /* Admin order detail overlay */
 .admin-order-detail-overlay {
     position: fixed;

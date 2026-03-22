@@ -22,8 +22,5 @@ window.KEYZES_CONFIG = {
     // stripePaymentMethodTypes: ['card', 'link'],
 
     // Optional: endpoint that deletes the authenticated customer account
-    accountDeleteFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/delete-account',
-
-    // Optional: endpoint to cancel a subscription
-    cancelSubscriptionFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/cancel-subscription'
+    accountDeleteFunctionUrl: 'https://gypznlmfkarzgzfbqhks.supabase.co/functions/v1/delete-account'
 };
