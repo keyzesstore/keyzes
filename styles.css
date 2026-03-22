@@ -1512,7 +1512,7 @@ a {
 
     /* --- Container --- */
     .container {
-        padding: 0 6px;
+        padding: 0 2px;
     }
 
     /* --- Header --- */
@@ -1535,7 +1535,7 @@ a {
     .nav-links {
         display: flex;
         order: 2;
-        margin-left: 4px;
+        margin-left: 0;
         gap: 14px;
         min-width: 0;
         flex-wrap: nowrap;
