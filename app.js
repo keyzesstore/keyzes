@@ -58,7 +58,7 @@
         if (!isSupabaseConfigured()) return;
         try {
             const cloudProducts = await fetchProductCatalogFromCloud();
-            if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+            if (Array.isArray(cloudProducts)) {
                 products = cloudProducts;
                 saveJSON(STORAGE_PRODUCTS, products);
             }
@@ -621,7 +621,7 @@
     saveJSON(STORAGE_CART, cart);
 
     // Seed demo products on first visit or if old data lacks variants
-    if (products.length === 0 || (products.length > 0 && !products[0].variants)) {
+    if (!isSupabaseConfigured() && (products.length === 0 || (products.length > 0 && !products[0].variants))) {
         products = getSeedProducts();
         saveJSON(STORAGE_PRODUCTS, products);
     }
@@ -3298,6 +3298,26 @@
     // ===========================
     //  INIT
     // ===========================
+
+    async function refreshCatalogFromCloudAndRender() {
+        if (!isSupabaseConfigured()) return;
+        await loadSharedProductCatalog();
+        renderProducts();
+        if (adminView.style.display !== 'none') {
+            renderAdminProducts();
+            renderDashboard();
+        }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            refreshCatalogFromCloudAndRender();
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        refreshCatalogFromCloudAndRender();
+    });
 
     (async function initializeApp() {
         await loadSharedProductCatalog();
