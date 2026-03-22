@@ -150,11 +150,15 @@ Deno.serve(async (req) => {
             },
         };
 
+        // Only set explicit payment_method_types when the operator has configured
+        // a custom list. Otherwise omit the param entirely — Stripe will present
+        // every payment method enabled in the Dashboard (including Apple Pay,
+        // Google Pay, Link, etc. based on the customer's device/country).
         if (paymentMethodTypes && paymentMethodTypes.length) {
             sessionPayload.payment_method_types = paymentMethodTypes;
         }
 
-        const session = await stripe.checkout.sessions.create(sessionPayload);
+        const session = await stripe.checkout.sessions.create(sessionPayload as Parameters<typeof stripe.checkout.sessions.create>[0]);
 
         if (!session.url) {
             return Response.json(
