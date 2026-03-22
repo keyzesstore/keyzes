@@ -1,8 +1,8 @@
 /* ============================================
-   KEYZES MARKETPLACE - App Logic
-   Storefront + Admin Panel
-   All data persisted in localStorage
-   ============================================ */
+    KEYZES MARKETPLACE - App Logic
+    Storefront + Admin Panel
+    Product catalog is synced via Supabase when configured
+    ============================================ */
 
 (function () {
     'use strict';
@@ -35,6 +35,76 @@
         catch { return fallback; }
     }
     function saveJSON(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+
+    function isSupabaseConfigured() {
+        return !!supabaseClient;
+    }
+
+    async function fetchProductCatalogFromCloud() {
+        if (!isSupabaseConfigured()) return null;
+        const { data, error } = await supabaseClient
+            .from('product_catalog')
+            .select('id, data, updated_at')
+            .order('updated_at', { ascending: false });
+
+        if (error) throw error;
+        const mapped = (data || [])
+            .map(row => row && row.data)
+            .filter(item => item && item.id);
+        return mapped;
+    }
+
+    async function loadSharedProductCatalog() {
+        if (!isSupabaseConfigured()) return;
+        try {
+            const cloudProducts = await fetchProductCatalogFromCloud();
+            if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+                products = cloudProducts;
+                saveJSON(STORAGE_PRODUCTS, products);
+            }
+        } catch (err) {
+            console.warn('[Catalog] Failed to load shared catalog:', err && err.message ? err.message : err);
+        }
+    }
+
+    async function upsertProductToCloud(product) {
+        if (!isSupabaseConfigured()) return;
+        if (!isCurrentUserAdmin()) throw new Error('Admin authentication required to edit shared catalog.');
+        const { error } = await supabaseClient
+            .from('product_catalog')
+            .upsert({
+                id: product.id,
+                data: product,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+        if (error) throw error;
+    }
+
+    async function replaceCloudCatalog(nextProducts) {
+        if (!isSupabaseConfigured()) return;
+        if (!isCurrentUserAdmin()) throw new Error('Admin authentication required to edit shared catalog.');
+
+        const { error: clearError } = await supabaseClient
+            .from('product_catalog')
+            .delete()
+            .neq('id', '');
+        if (clearError) throw clearError;
+
+        if (!Array.isArray(nextProducts) || nextProducts.length === 0) return;
+
+        const rows = nextProducts
+            .filter(item => item && item.id)
+            .map(item => ({
+                id: item.id,
+                data: item,
+                updated_at: new Date().toISOString(),
+            }));
+
+        const { error: upsertError } = await supabaseClient
+            .from('product_catalog')
+            .upsert(rows, { onConflict: 'id' });
+        if (upsertError) throw upsertError;
+    }
 
     function normalizeEmail(value) {
         return String(value || '').trim().toLowerCase();
@@ -2958,7 +3028,7 @@
     $('#cropperOverlay').addEventListener('click', function(e) { if (e.target === this) closeCropper(); });
 
     // Submit product form
-    productForm.addEventListener('submit', e => {
+    productForm.addEventListener('submit', async e => {
         e.preventDefault();
 
         const variants = getVariantsFromForm();
@@ -2988,7 +3058,14 @@
             // Edit existing
             const idx = products.findIndex(p => p.id === editId);
             if (idx !== -1) {
-                products[idx] = { ...products[idx], ...data };
+                const updatedProduct = { ...products[idx], ...data };
+                try {
+                    await upsertProductToCloud(updatedProduct);
+                } catch (err) {
+                    showToast('Could not sync product update: ' + (err && err.message ? err.message : 'try again.'), 'error');
+                    return;
+                }
+                products[idx] = updatedProduct;
                 saveJSON(STORAGE_PRODUCTS, products);
                 showToast('Product updated successfully.', 'success');
             }
@@ -2996,6 +3073,12 @@
             // Add new
             data.id = uid();
             data.createdAt = Date.now();
+            try {
+                await upsertProductToCloud(data);
+            } catch (err) {
+                showToast('Could not sync product add: ' + (err && err.message ? err.message : 'try again.'), 'error');
+                return;
+            }
             products.push(data);
             saveJSON(STORAGE_PRODUCTS, products);
             showToast('Product added successfully.', 'success');
@@ -3025,10 +3108,18 @@
         // Delete
         if (e.target.matches('[data-delete]')) {
             const id = e.target.dataset.delete;
-            showConfirm('Delete Product?', 'This cannot be undone. The product will be removed permanently.', () => {
-                products = products.filter(p => p.id !== id);
+            showConfirm('Delete Product?', 'This cannot be undone. The product will be removed permanently.', async () => {
+                const nextProducts = products.filter(p => p.id !== id);
+                try {
+                    await replaceCloudCatalog(nextProducts);
+                } catch (err) {
+                    showToast('Could not sync product deletion: ' + (err && err.message ? err.message : 'try again.'), 'error');
+                    return;
+                }
+                products = nextProducts;
                 saveJSON(STORAGE_PRODUCTS, products);
                 showToast('Product deleted.', 'info');
+                renderProducts();
                 // Re-render current section
                 const dashboardVisible = $('#adminDashboard').style.display !== 'none';
                 if (dashboardVisible) renderDashboard(); else renderAdminProducts();
@@ -3075,19 +3166,26 @@
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
             try {
                 const imported = JSON.parse(reader.result);
                 if (!Array.isArray(imported)) throw new Error('Invalid format');
                 // Assign ids if missing
                 imported.forEach(p => { if (!p.id) p.id = uid(); });
+                await replaceCloudCatalog(imported);
                 products = imported;
                 saveJSON(STORAGE_PRODUCTS, products);
                 showToast(`Imported ${imported.length} products.`, 'success');
+                renderProducts();
                 renderAdminProducts();
                 renderDashboard();
-            } catch {
-                showToast('Invalid JSON file.', 'error');
+            } catch (err) {
+                const msg = err && err.message ? err.message : '';
+                if (/invalid format/i.test(msg)) {
+                    showToast('Invalid JSON file.', 'error');
+                    return;
+                }
+                showToast('Could not import into shared catalog: ' + (msg || 'try again.'), 'error');
             }
         };
         reader.readAsText(file);
@@ -3096,9 +3194,16 @@
 
     // Clear all data
     $('#clearAllData').addEventListener('click', () => {
-        showConfirm('Clear All Products?', 'This will permanently delete every product. This cannot be undone.', () => {
+        showConfirm('Clear All Products?', 'This will permanently delete every product. This cannot be undone.', async () => {
+            try {
+                await replaceCloudCatalog([]);
+            } catch (err) {
+                showToast('Could not clear shared catalog: ' + (err && err.message ? err.message : 'try again.'), 'error');
+                return;
+            }
             products = [];
             saveJSON(STORAGE_PRODUCTS, products);
+            renderProducts();
             renderAdminProducts();
             renderDashboard();
             showToast('All products cleared.', 'info');
@@ -3194,8 +3299,11 @@
     //  INIT
     // ===========================
 
-    renderProducts();
-    initializeCustomerAuth();
+    (async function initializeApp() {
+        await loadSharedProductCatalog();
+        renderProducts();
+        initializeCustomerAuth();
+    })();
 
     // If admin session was saved, keep auth state but don't auto-open panel
     // They can click the gear icon to open it
