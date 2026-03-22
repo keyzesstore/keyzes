@@ -3345,16 +3345,20 @@
         if (!isSupabaseConfigured()) return;
         if (catalogRealtimeChannel) return;
 
-        catalogRealtimeChannel = supabaseClient
-            .channel('keyzes-product-catalog-live')
-            .on('postgres_changes', {
-                event: '*',
-                schema: 'public',
-                table: 'product_catalog',
-            }, () => {
-                scheduleCatalogRefresh();
-            })
-            .subscribe();
+        try {
+            catalogRealtimeChannel = supabaseClient
+                .channel('keyzes-product-catalog-live')
+                .on('postgres_changes', {
+                    event: '*',
+                    schema: 'public',
+                    table: 'product_catalog',
+                }, () => {
+                    scheduleCatalogRefresh();
+                })
+                .subscribe();
+        } catch (err) {
+            console.warn('[Catalog] Realtime subscription unavailable, polling fallback will continue:', err && err.message ? err.message : err);
+        }
     }
 
     function startCatalogPollingFallback() {
@@ -3379,8 +3383,8 @@
     (async function initializeApp() {
         await loadSharedProductCatalog();
         renderProducts();
-        subscribeToCatalogRealtime();
         startCatalogPollingFallback();
+        subscribeToCatalogRealtime();
         initializeCustomerAuth();
     })();
 
