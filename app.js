@@ -349,12 +349,27 @@
         if (!stripeStatus) return;
 
         if (stripeStatus === 'success') {
-            cart = [];
+            // Restore excluded items (different billing period) back into cart
+            const excluded = loadJSON('keyzes_excluded_cart', []);
+            localStorage.removeItem('keyzes_excluded_cart');
+            cart = excluded.length ? excluded : [];
             saveJSON(STORAGE_CART, cart);
             updateCartBadge();
             if (typeof renderCart === 'function') renderCart();
-            showToast('Payment successful. Thank you for your order!', 'success');
+            if (excluded.length) {
+                showToast('Payment successful! Remaining items are still in your cart.', 'success');
+            } else {
+                showToast('Payment successful. Thank you for your order!', 'success');
+            }
         } else if (stripeStatus === 'cancel') {
+            // On cancel, merge excluded items back
+            const excluded = loadJSON('keyzes_excluded_cart', []);
+            localStorage.removeItem('keyzes_excluded_cart');
+            if (excluded.length) {
+                cart.push(...excluded);
+                saveJSON(STORAGE_CART, cart);
+                updateCartBadge();
+            }
             showToast('Stripe checkout was canceled.', 'info');
         }
 
@@ -1279,6 +1294,48 @@
         return p.variants[item.variantIdx].name;
     }
 
+    // Determine which cart items can be checked out together.
+    // Stripe subscription mode only allows ONE recurring interval per session.
+    // One-time items are always compatible. Among auto-renew items, the most
+    // common billing period "wins" — items with other periods are excluded.
+    function getCartCompatibility(cartItems) {
+        const periodLabels = { '1_month': 'Monthly', '3_months': 'Every 3 months', '6_months': 'Every 6 months', '1_year': 'Yearly' };
+        const renewItems = cartItems.filter(i => i.autoRenew);
+        if (renewItems.length <= 1) {
+            // 0 or 1 subscription — everything is compatible
+            return { compatible: cartItems.map(i => i.cartKey), excluded: [], activePeriod: null };
+        }
+        // Count items per period
+        const periodCounts = {};
+        renewItems.forEach(i => {
+            const p = products.find(pr => pr.id === i.id);
+            const period = i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
+            periodCounts[period] = (periodCounts[period] || 0) + i.qty;
+        });
+        const uniquePeriods = Object.keys(periodCounts);
+        if (uniquePeriods.length <= 1) {
+            return { compatible: cartItems.map(i => i.cartKey), excluded: [], activePeriod: uniquePeriods[0] || null };
+        }
+        // Pick the period with most items as active
+        const activePeriod = uniquePeriods.sort((a, b) => periodCounts[b] - periodCounts[a])[0];
+        const compatible = [];
+        const excluded = [];
+        cartItems.forEach(i => {
+            if (!i.autoRenew) {
+                compatible.push(i.cartKey);
+            } else {
+                const p = products.find(pr => pr.id === i.id);
+                const period = i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
+                if (period === activePeriod) {
+                    compatible.push(i.cartKey);
+                } else {
+                    excluded.push({ cartKey: i.cartKey, period, periodLabel: periodLabels[period] || period, activePeriodLabel: periodLabels[activePeriod] || activePeriod });
+                }
+            }
+        });
+        return { compatible, excluded, activePeriod };
+    }
+
     function renderCart() {
         const cartItems = $('#cartItems');
         const cartEmpty = $('#cartEmpty');
@@ -1298,6 +1355,10 @@
         const noImgSvg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="#111627"><rect width="80" height="80"/><text x="50%" y="50%" fill="#5a6380" font-family="sans-serif" font-size="10" text-anchor="middle" dy=".35em">No Image</text></svg>');
         const periodLabels = { '1_month': 'Monthly', '3_months': 'Every 3 months', '6_months': 'Every 6 months', '1_year': 'Yearly' };
 
+        const compat = getCartCompatibility(cart);
+        const excludedMap = {};
+        compat.excluded.forEach(e => { excludedMap[e.cartKey] = e; });
+
         cartItems.innerHTML = cart.map(item => {
             const p = products.find(pr => pr.id === item.id);
             if (!p) return '';
@@ -1306,6 +1367,7 @@
             const lineTotal = (unitPrice * item.qty).toFixed(2);
             const variantName = getItemVariantName(item);
             const variantLabel = variantName ? ` &middot; ${escapeHtml(variantName)}` : '';
+            const isExcluded = !!excludedMap[item.cartKey];
 
             // Auto-renewal checkbox (only for subscription-eligible products)
             let renewalHtml = '';
@@ -1321,15 +1383,24 @@
                 </div>`;
             }
 
+            // Excluded item warning
+            let excludedHtml = '';
+            if (isExcluded) {
+                const info = excludedMap[item.cartKey];
+                excludedHtml = `<div class="cart-item-excluded-msg">Cannot checkout with ${escapeHtml(info.activePeriodLabel)} items — different billing period. Checkout separately or uncheck auto-renew.</div>`;
+            }
+
             const subBadge = item.autoRenew ? ' <span class="cart-sub-badge">Subscription</span>' : '';
+            const excludedClass = isExcluded ? ' cart-item-excluded' : '';
 
             return `
-            <div class="cart-item" data-cart-key="${item.cartKey}">
+            <div class="cart-item${excludedClass}" data-cart-key="${item.cartKey}">
                 <img class="cart-item-img" src="${escapeAttr(imgSrc)}" alt="${escapeAttr(p.title)}">
                 <div class="cart-item-info">
                     <div class="cart-item-title">${escapeHtml(p.title)}${subBadge}</div>
                     <div class="cart-item-category">${categoryLabel(p.category)}${variantLabel} &middot; ${platformLabel(p.platform)}</div>
                     ${renewalHtml}
+                    ${excludedHtml}
                 </div>
                 <div class="cart-item-qty">
                     <button class="cart-qty-btn" data-qty-action="minus" data-qty-key="${item.cartKey}">&minus;</button>
@@ -1341,7 +1412,9 @@
             </div>`;
         }).join('');
 
-        const pricing = getCheckoutPricing(currentCustomer, cart);
+        // Calculate pricing only for compatible items
+        const compatibleItems = cart.filter(i => compat.compatible.includes(i.cartKey));
+        const pricing = getCheckoutPricing(currentCustomer, compatibleItems);
 
         $('#cartSubtotal').textContent = '$' + formatMoney(pricing.subtotal);
         if (cartDiscountRow && cartDiscount) {
@@ -1401,12 +1474,28 @@
         checkoutBtn.textContent = 'Processing...';
 
         try {
-            const pricing = getCheckoutPricing(currentCustomer, cart);
-            const cartSnapshot = cart.map(item => ({ ...item }));
+            // Only checkout compatible items (excluded items stay in cart)
+            const compat = getCartCompatibility(cart);
+            const compatibleItems = cart.filter(i => compat.compatible.includes(i.cartKey));
+            const excludedItems = cart.filter(i => !compat.compatible.includes(i.cartKey));
+
+            if (!compatibleItems.length) {
+                showToast('No compatible items to checkout. Adjust auto-renewal settings.', 'error');
+                return;
+            }
+
+            const pricing = getCheckoutPricing(currentCustomer, compatibleItems);
+            const cartSnapshot = compatibleItems.map(item => ({ ...item }));
 
             if (getStripeCheckoutFunctionUrl()) {
-                const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
+                // Store excluded items so they survive the redirect
+                if (excludedItems.length) {
+                    saveJSON('keyzes_excluded_cart', excludedItems);
+                }
+
+                const stripeResult = await createStripeCheckoutSession(currentCustomer, compatibleItems, pricing);
                 if (!stripeResult.ok) {
+                    localStorage.removeItem('keyzes_excluded_cart');
                     showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
                     return;
                 }
