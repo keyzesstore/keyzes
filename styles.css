@@ -4677,43 +4677,23 @@ body.auth-open {
    SUBSCRIPTION & ORDER TRACKING STYLES
    =========================== */
 
-/* Subscription selector in product modal */
-.subscription-selector {
-    margin: 12px 0 8px;
-}
-.subscription-toggle-row {
-    display: flex;
-    gap: 8px;
-    margin: 8px 0;
-}
-.sub-type-btn {
-    flex: 1;
-    padding: 10px 16px;
-    border: 1.5px solid var(--border-color);
-    background: var(--bg-surface);
-    color: var(--text-secondary);
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s;
-}
-.sub-type-btn.active {
-    border-color: var(--orange-primary);
-    background: rgba(255, 140, 50, 0.08);
-    color: var(--orange-light);
-}
-.sub-type-btn:hover:not(.active) {
-    border-color: var(--text-muted);
-}
-.subscription-period-row {
-    margin-top: 8px;
-}
-.subscription-period-options {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
+/* Cart auto-renewal checkbox */
+.cart-item-renewal {
     margin-top: 6px;
+}
+.cart-renewal-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.cart-renewal-check {
+    accent-color: var(--orange-primary);
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }
 
 /* Subscription badge in cart */

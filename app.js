@@ -657,14 +657,13 @@
                 variantName: variant ? variant.name : '',
                 qty: Number(item.qty || 1),
                 unitPrice: Number(getItemPrice(item) || 0),
-                subscriptionType: item.subscriptionType || 'onetime',
-                subscriptionPeriod: item.subscriptionPeriod || '',
+                subscriptionType: item.autoRenew ? 'subscription' : 'onetime',
+                subscriptionPeriod: item.autoRenew ? (item.subscriptionPeriod || product?.subscriptionPeriod || '1_month') : '',
             };
         });
 
         // Check if any items are subscriptions
         const hasSubscription = checkoutItems.some(i => i.subscriptionType === 'subscription');
-        const allSubscription = checkoutItems.every(i => i.subscriptionType === 'subscription');
 
         const returnBase = window.location.origin + window.location.pathname;
         const paymentMethodTypes = getStripePaymentMethodTypes();
@@ -1163,47 +1162,6 @@
             badgeEl.style.display = 'none';
         }
 
-        // Subscription selector
-        const subSelector = $('#modalSubscriptionSelector');
-        const subPeriodRow = $('#modalSubPeriodRow');
-        const subPeriodOptions = $('#modalSubPeriodOptions');
-        if (p.subscriptionEnabled && p.subscriptionPeriods && p.subscriptionPeriods.length) {
-            subSelector.style.display = '';
-            productModal.dataset.subscriptionType = p.subscriptionDefault ? 'subscription' : 'onetime';
-            subSelector.querySelectorAll('.sub-type-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.subType === productModal.dataset.subscriptionType);
-            });
-
-            const periodLabels = { '1_month': '1 Month', '3_months': '3 Months', '6_months': '6 Months', '1_year': '1 Year' };
-            subPeriodOptions.innerHTML = p.subscriptionPeriods.map((per, i) =>
-                `<button class="variant-btn${i === 0 ? ' active' : ''}" data-sub-period="${per}">${escapeHtml(periodLabels[per] || per)}</button>`
-            ).join('');
-            productModal.dataset.subscriptionPeriod = p.subscriptionPeriods[0];
-
-            subPeriodRow.style.display = productModal.dataset.subscriptionType === 'subscription' ? '' : 'none';
-
-            subSelector.querySelectorAll('.sub-type-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    subSelector.querySelectorAll('.sub-type-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    productModal.dataset.subscriptionType = btn.dataset.subType;
-                    subPeriodRow.style.display = btn.dataset.subType === 'subscription' ? '' : 'none';
-                });
-            });
-
-            subPeriodOptions.querySelectorAll('.variant-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    subPeriodOptions.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    productModal.dataset.subscriptionPeriod = btn.dataset.subPeriod;
-                });
-            });
-        } else {
-            subSelector.style.display = 'none';
-            productModal.dataset.subscriptionType = 'onetime';
-            productModal.dataset.subscriptionPeriod = '';
-        }
-
         productModal.classList.add('open');
         document.body.style.overflow = 'hidden';
     }
@@ -1222,9 +1180,7 @@
     $('#modalAddCart').addEventListener('click', () => {
         const pid = productModal.dataset.currentProductId;
         const variantIdx = parseInt(productModal.dataset.selectedVariant || '0');
-        const subscriptionType = productModal.dataset.subscriptionType || 'onetime';
-        const subscriptionPeriod = productModal.dataset.subscriptionPeriod || '';
-        if (pid) addToCart(pid, variantIdx, { closeModalOnSuccess: true, source: 'modal', subscriptionType, subscriptionPeriod });
+        if (pid) addToCart(pid, variantIdx, { closeModalOnSuccess: true, source: 'modal' });
     });
 
     // ---- Cart Logic ----
@@ -1236,8 +1192,6 @@
             pendingCartAction = {
                 productId,
                 variantIdx,
-                subscriptionType: options.subscriptionType || 'onetime',
-                subscriptionPeriod: options.subscriptionPeriod || '',
                 closeModalOnSuccess: !!options.closeModalOnSuccess,
             };
             if (options.source === 'modal' || productModal.classList.contains('open')) {
@@ -1248,14 +1202,15 @@
         }
 
         const vi = (p.variants && p.variants.length > 1) ? (variantIdx || 0) : 0;
-        const subType = options.subscriptionType || 'onetime';
-        const subPeriod = subType === 'subscription' ? (options.subscriptionPeriod || '') : '';
-        const cartKey = productId + '_v' + vi + (subType === 'subscription' ? '_sub_' + subPeriod : '');
+        const cartKey = productId + '_v' + vi;
         const existing = cart.find(item => item.cartKey === cartKey);
         if (existing) {
             existing.qty++;
         } else {
-            cart.push({ id: productId, cartKey, variantIdx: vi, qty: 1, subscriptionType: subType, subscriptionPeriod: subPeriod });
+            // Auto-renewal: pre-checked if admin enabled it and set default
+            const autoRenew = !!(p.subscriptionEnabled && p.subscriptionDefault);
+            const subPeriod = p.subscriptionEnabled ? (p.subscriptionPeriod || '1_month') : '';
+            cart.push({ id: productId, cartKey, variantIdx: vi, qty: 1, autoRenew, subscriptionPeriod: subPeriod });
         }
         saveJSON(STORAGE_CART, cart);
         updateCartBadge();
@@ -1272,8 +1227,6 @@
         addToCart(queuedAction.productId, queuedAction.variantIdx, {
             skipAuth: true,
             closeModalOnSuccess: queuedAction.closeModalOnSuccess,
-            subscriptionType: queuedAction.subscriptionType,
-            subscriptionPeriod: queuedAction.subscriptionPeriod,
         });
     }
 
@@ -1343,6 +1296,7 @@
         cartSummary.style.display = '';
 
         const noImgSvg = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" fill="#111627"><rect width="80" height="80"/><text x="50%" y="50%" fill="#5a6380" font-family="sans-serif" font-size="10" text-anchor="middle" dy=".35em">No Image</text></svg>');
+        const periodLabels = { '1_month': 'Monthly', '3_months': 'Every 3 months', '6_months': 'Every 6 months', '1_year': 'Yearly' };
 
         cartItems.innerHTML = cart.map(item => {
             const p = products.find(pr => pr.id === item.id);
@@ -1352,16 +1306,30 @@
             const lineTotal = (unitPrice * item.qty).toFixed(2);
             const variantName = getItemVariantName(item);
             const variantLabel = variantName ? ` &middot; ${escapeHtml(variantName)}` : '';
-            const periodLabels = { '1_month': '/mo', '3_months': '/3mo', '6_months': '/6mo', '1_year': '/yr' };
-            const subLabel = item.subscriptionType === 'subscription'
-                ? ` <span class="cart-sub-badge">Subscription${item.subscriptionPeriod ? ' ' + (periodLabels[item.subscriptionPeriod] || item.subscriptionPeriod) : ''}</span>`
-                : '';
+
+            // Auto-renewal checkbox (only for subscription-eligible products)
+            let renewalHtml = '';
+            if (p.subscriptionEnabled) {
+                const checked = item.autoRenew ? 'checked' : '';
+                const periodLabel = periodLabels[item.subscriptionPeriod || p.subscriptionPeriod] || 'Monthly';
+                renewalHtml = `
+                <div class="cart-item-renewal">
+                    <label class="cart-renewal-label">
+                        <input type="checkbox" class="cart-renewal-check" data-renewal-key="${item.cartKey}" ${checked}>
+                        <span>Auto-renew (${escapeHtml(periodLabel)})</span>
+                    </label>
+                </div>`;
+            }
+
+            const subBadge = item.autoRenew ? ' <span class="cart-sub-badge">Subscription</span>' : '';
+
             return `
             <div class="cart-item" data-cart-key="${item.cartKey}">
                 <img class="cart-item-img" src="${escapeAttr(imgSrc)}" alt="${escapeAttr(p.title)}">
                 <div class="cart-item-info">
-                    <div class="cart-item-title">${escapeHtml(p.title)}${subLabel}</div>
+                    <div class="cart-item-title">${escapeHtml(p.title)}${subBadge}</div>
                     <div class="cart-item-category">${categoryLabel(p.category)}${variantLabel} &middot; ${platformLabel(p.platform)}</div>
+                    ${renewalHtml}
                 </div>
                 <div class="cart-item-qty">
                     <button class="cart-qty-btn" data-qty-action="minus" data-qty-key="${item.cartKey}">&minus;</button>
@@ -1396,6 +1364,19 @@
         cartItems.querySelectorAll('[data-remove-key]').forEach(btn => {
             btn.addEventListener('click', () => removeFromCart(btn.dataset.removeKey));
         });
+
+        // Bind auto-renewal checkboxes
+        cartItems.querySelectorAll('.cart-renewal-check').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const key = cb.dataset.renewalKey;
+                const item = cart.find(i => i.cartKey === key);
+                if (item) {
+                    item.autoRenew = cb.checked;
+                    saveJSON(STORAGE_CART, cart);
+                    renderCart();
+                }
+            });
+        });
     }
 
     // Cart back button
@@ -1424,10 +1405,10 @@
             const cartSnapshot = cart.map(item => ({ ...item }));
 
             // Block mixed carts (Stripe can't do payment + subscription in one session)
-            const hasSub = cart.some(i => i.subscriptionType === 'subscription');
-            const hasOnetime = cart.some(i => i.subscriptionType !== 'subscription');
+            const hasSub = cart.some(i => i.autoRenew);
+            const hasOnetime = cart.some(i => !i.autoRenew);
             if (hasSub && hasOnetime) {
-                showToast('You cannot mix subscription and one-time items in one checkout. Please separate them.', 'error');
+                showToast('You cannot mix auto-renewal and one-time items in one checkout. Please separate them.', 'error');
                 return;
             }
 
@@ -3281,7 +3262,7 @@
         $('#productSubscriptionEnabled').checked = false;
         $('#productSubscriptionDefault').checked = false;
         $('#subscriptionOptions').style.display = 'none';
-        $$('.sub-period-check').forEach(cb => cb.checked = false);
+        $('#productSubscriptionPeriod').value = '1_month';
         clearVariantRows();
         addVariantRow('', '');
     }
@@ -3317,13 +3298,7 @@
         $('#productSubscriptionEnabled').checked = subEnabled;
         $('#subscriptionOptions').style.display = subEnabled ? '' : 'none';
         $('#productSubscriptionDefault').checked = !!product.subscriptionDefault;
-        $$('.sub-period-check').forEach(cb => cb.checked = false);
-        if (Array.isArray(product.subscriptionPeriods)) {
-            product.subscriptionPeriods.forEach(p => {
-                const cb = $(`.sub-period-check[value="${p}"]`);
-                if (cb) cb.checked = true;
-            });
-        }
+        $('#productSubscriptionPeriod').value = product.subscriptionPeriod || '1_month';
 
         clearVariantRows();
         if (product.variants && product.variants.length > 0) {
@@ -3360,11 +3335,7 @@
         $('#subscriptionOptions').style.display = this.checked ? '' : 'none';
     });
 
-    function getSubscriptionPeriodsFromForm() {
-        const periods = [];
-        $$('.sub-period-check').forEach(cb => { if (cb.checked) periods.push(cb.value); });
-        return periods;
-    }
+
 
     function getVariantsFromForm() {
         const rows = $$('#variantsList .variant-row');
@@ -3666,7 +3637,7 @@
             variants: variants,
             subscriptionEnabled: $('#productSubscriptionEnabled').checked,
             subscriptionDefault: $('#productSubscriptionDefault').checked,
-            subscriptionPeriods: getSubscriptionPeriodsFromForm(),
+            subscriptionPeriod: $('#productSubscriptionPeriod').value,
         };
 
         const editId = productEditId.value;

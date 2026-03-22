@@ -784,25 +784,27 @@
                             <label class="toggle-label">
                                 <input type="checkbox" id="productSubscriptionEnabled" class="toggle-input">
                                 <span class="toggle-switch"></span>
-                                Allow Subscription Purchase
+                                Allow Auto-Renewal Subscription
                             </label>
                         </div>
 
                         <div id="subscriptionOptions" style="display:none;">
-                            <div class="form-group">
-                                <label class="toggle-label">
-                                    <input type="checkbox" id="productSubscriptionDefault" class="toggle-input">
-                                    <span class="toggle-switch"></span>
-                                    Pre-select subscription option for customers
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label>Subscription Periods <span class="form-hint">Select which billing periods customers can choose</span></label>
-                                <div class="subscription-periods-editor">
-                                    <label class="toggle-label"><input type="checkbox" class="sub-period-check" value="1_month"> <span>1 Month</span></label>
-                                    <label class="toggle-label"><input type="checkbox" class="sub-period-check" value="3_months"> <span>3 Months</span></label>
-                                    <label class="toggle-label"><input type="checkbox" class="sub-period-check" value="6_months"> <span>6 Months</span></label>
-                                    <label class="toggle-label"><input type="checkbox" class="sub-period-check" value="1_year"> <span>1 Year</span></label>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="productSubscriptionPeriod">Billing Period</label>
+                                    <select id="productSubscriptionPeriod">
+                                        <option value="1_month">1 Month</option>
+                                        <option value="3_months">3 Months</option>
+                                        <option value="6_months">6 Months</option>
+                                        <option value="1_year">1 Year</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" style="display:flex;align-items:flex-end;">
+                                    <label class="toggle-label" style="margin-bottom:8px;">
+                                        <input type="checkbox" id="productSubscriptionDefault" class="toggle-input" checked>
+                                        <span class="toggle-switch"></span>
+                                        Pre-check in cart
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -1208,17 +1210,7 @@
                         <label class="variant-label">Select option:</label>
                         <div class="variant-options" id="variantOptions"></div>
                     </div>
-                    <div class="subscription-selector" id="modalSubscriptionSelector" style="display:none;">
-                        <label class="variant-label">Purchase type:</label>
-                        <div class="subscription-toggle-row">
-                            <button type="button" class="sub-type-btn active" data-sub-type="onetime">One-time</button>
-                            <button type="button" class="sub-type-btn" data-sub-type="subscription">Subscription</button>
-                        </div>
-                        <div class="subscription-period-row" id="modalSubPeriodRow" style="display:none;">
-                            <label class="variant-label">Billing period:</label>
-                            <div class="subscription-period-options" id="modalSubPeriodOptions"></div>
-                        </div>
-                    </div>
+
                     <div class="product-modal-pricing">
                         <span class="price-current" id="modalProductPrice"></span>
                         <span class="price-original" id="modalProductOriginalPrice"></span>
