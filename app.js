@@ -1404,6 +1404,19 @@
             const pricing = getCheckoutPricing(currentCustomer, cart);
             const cartSnapshot = cart.map(item => ({ ...item }));
 
+            // Stripe doesn't support multiple recurring prices with different intervals
+            const renewItems = cart.filter(i => i.autoRenew);
+            if (renewItems.length > 1) {
+                const periods = new Set(renewItems.map(i => {
+                    const p = products.find(pr => pr.id === i.id);
+                    return i.subscriptionPeriod || p?.subscriptionPeriod || '1_month';
+                }));
+                if (periods.size > 1) {
+                    showToast('Auto-renewal items with different billing periods cannot be combined in one checkout. Please checkout them separately.', 'error');
+                    return;
+                }
+            }
+
             if (getStripeCheckoutFunctionUrl()) {
                 const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
                 if (!stripeResult.ok) {
