@@ -4854,6 +4854,25 @@ body.auth-open {
     background: #ef4444 !important;
 }
 
+.admin-order-delete-btn {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: transparent;
+    color: #ef4444;
+    font-weight: 600;
+    font-size: 13px;
+    border: 1px solid #ef444466;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.admin-order-delete-btn:hover {
+    background: #ef4444;
+    color: #fff;
+}
+
 /* Admin order detail overlay */
 .admin-order-detail-overlay {
     position: fixed;

@@ -2167,6 +2167,11 @@
         const st = order.delivery_status || 'processing';
         const statusLabels = { processing: 'Processing', delivering: 'Delivering', delivered: 'Delivered' };
         const statusColors = { processing: '#f59e0b', delivering: '#3b82f6', delivered: '#22c55e' };
+        const statusMessages = {
+            processing: 'Your purchase is being processed. We\u2019ll update you once it\u2019s on the way.',
+            delivering: 'Your order is on the way! Check back soon for delivery details.',
+            delivered: 'Your order has been delivered. Enjoy!'
+        };
         const when = new Date(order.created_at || Date.now()).toLocaleString();
         const deliveredAt = order.delivered_at ? new Date(order.delivered_at).toLocaleString() : '';
 
@@ -2176,6 +2181,7 @@
         }).join('') : '<p class="settings-hint">No items found.</p>';
 
         body.innerHTML = `
+            <div class="order-status-message" style="background:${statusColors[st]}22;border:1px solid ${statusColors[st]}44;border-radius:var(--radius-md);padding:10px 14px;margin-bottom:14px;color:${statusColors[st]};font-size:14px;font-weight:500;">${statusMessages[st] || ''}</div>
             <div class="order-detail-row"><strong>Order ID:</strong> <span>${escapeHtml(String(order.id))}</span></div>
             <div class="order-detail-row"><strong>Date:</strong> <span>${escapeHtml(when)}</span></div>
             <div class="order-detail-row"><strong>Status:</strong> <span style="color:${statusColors[st]};font-weight:600;">${escapeHtml(statusLabels[st] || st)}</span></div>
@@ -3222,7 +3228,7 @@
         try {
             const { data, error } = await supabaseClient
                 .from('orders')
-                .select('id, customer_email, status, delivery_status, delivery_description, subtotal, currency, is_subscription, subscription_period, created_at, delivered_at, updated_at')
+                .select('id, customer_email, status, delivery_status, delivery_description, subtotal, currency, is_subscription, subscription_period, stripe_subscription_id, subscription_status, created_at, delivered_at, updated_at')
                 .order('created_at', { ascending: false });
             if (error) throw error;
             return data || [];
@@ -3273,7 +3279,7 @@
                 <td style="font-family:monospace;font-size:12px;">${escapeHtml(String(o.id).substring(0, 8))}</td>
                 <td>${escapeHtml(o.customer_email)}</td>
                 <td style="color:var(--orange-light)">$${formatMoney(o.subtotal || 0)}</td>
-                <td><span style="color:${statusColors[st] || '#888'};font-weight:600;">${escapeHtml(statusLabels[st] || st)}</span>${o.is_subscription ? ' <span class="cart-sub-badge" style="font-size:10px;">Sub</span>' : ''}</td>
+                <td><span style="color:${statusColors[st] || '#888'};font-weight:600;">${escapeHtml(statusLabels[st] || st)}</span>${o.is_subscription ? (o.subscription_status === 'cancelled' ? ' <span class="cart-sub-badge sub-badge-cancelled" style="font-size:10px;">Cancelled</span>' : ' <span class="cart-sub-badge" style="font-size:10px;">Sub</span>') : ''}</td>
                 <td style="font-size:13px;">${escapeHtml(when)}</td>
                 <td class="table-actions"><button class="table-btn table-btn-edit" data-admin-order="${o.id}">Manage</button></td>
             </tr>`;
@@ -3312,7 +3318,8 @@
             <div class="order-detail-row"><strong>Customer:</strong> <span>${escapeHtml(order.customer_email)}</span></div>
             <div class="order-detail-row"><strong>Date:</strong> <span>${escapeHtml(when)}</span></div>
             <div class="order-detail-row"><strong>Total:</strong> <span>$${formatMoney(order.subtotal || 0)}</span></div>
-            ${order.is_subscription ? '<div class="order-detail-row"><strong>Type:</strong> <span>Subscription</span></div>' : ''}
+            ${order.is_subscription ? `<div class="order-detail-row"><strong>Type:</strong> <span>Subscription${order.subscription_period ? ' (' + escapeHtml(order.subscription_period) + ')' : ''}</span></div>` : ''}
+            ${order.is_subscription ? `<div class="order-detail-row"><strong>Subscription:</strong> <span style="color:${order.subscription_status === 'cancelled' ? '#ef4444' : '#22c55e'};font-weight:600;">${order.subscription_status === 'cancelled' ? 'Cancelled' : 'Active'}</span></div>` : ''}
             <h4 style="margin:12px 0 8px;color:var(--text-primary);">Items</h4>
             ${itemsHtml}
         `;
@@ -3376,6 +3383,27 @@
             }
 
             showToast('Order updated successfully.', 'success');
+            closeAdminOrderDetail();
+            renderAdminOrders();
+        });
+    }
+
+    if ($('#adminOrderDeleteBtn')) {
+        $('#adminOrderDeleteBtn').addEventListener('click', async () => {
+            const orderId = $('#adminOrderEditId').value;
+            if (!orderId || !isSupabaseConfigured()) return;
+            if (!confirm('Are you sure you want to permanently delete this order? This cannot be undone.')) return;
+
+            try {
+                // Delete order items first, then the order
+                await supabaseClient.from('order_items').delete().eq('order_id', orderId);
+                const { error } = await supabaseClient.from('orders').delete().eq('id', orderId);
+                if (error) throw error;
+                showToast('Order deleted.', 'success');
+            } catch (err) {
+                showToast('Failed to delete order: ' + (err.message || 'Unknown error'), 'error');
+                return;
+            }
             closeAdminOrderDetail();
             renderAdminOrders();
         });
