@@ -2084,10 +2084,10 @@
                     if (prev) {
                         if (prev.delivery_status !== order.delivery_status) {
                             const label = _orderStatusLabels[order.delivery_status] || order.delivery_status;
-                            showToast('Order #' + String(order.id).substring(0, 8) + ' is now ' + label + '.', 'info');
+                            showToast('Order #' + String(order.id).substring(0, 8) + ' is now ' + label + '.', 'info', order.id);
                         }
                         if (prev.subscription_status !== order.subscription_status && order.subscription_status === 'cancelled') {
-                            showToast('Subscription cancelled for order #' + String(order.id).substring(0, 8) + '.', 'info');
+                            showToast('Subscription cancelled for order #' + String(order.id).substring(0, 8) + '.', 'info', order.id);
                         }
                     }
                     // Update cache
