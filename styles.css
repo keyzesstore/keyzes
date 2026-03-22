@@ -3665,7 +3665,7 @@ body.auth-open {
     font-size: 14px;
     font-weight: 500;
     box-shadow: var(--shadow-lg);
-    z-index: 300;
+    z-index: 9999;
     transform: translateY(100px);
     opacity: 0;
     transition: transform 0.3s, opacity 0.3s;
