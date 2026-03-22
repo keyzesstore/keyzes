@@ -1488,13 +1488,20 @@
             const cartSnapshot = compatibleItems.map(item => ({ ...item }));
 
             if (getStripeCheckoutFunctionUrl()) {
-                // Store excluded items so they survive the redirect
+                // Store excluded items separately and remove them from main cart before redirect
                 if (excludedItems.length) {
                     saveJSON('keyzes_excluded_cart', excludedItems);
+                    cart = compatibleItems;
+                    saveJSON(STORAGE_CART, cart);
                 }
 
                 const stripeResult = await createStripeCheckoutSession(currentCustomer, compatibleItems, pricing);
                 if (!stripeResult.ok) {
+                    // Restore excluded items back on error
+                    if (excludedItems.length) {
+                        cart.push(...excludedItems);
+                        saveJSON(STORAGE_CART, cart);
+                    }
                     localStorage.removeItem('keyzes_excluded_cart');
                     showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
                     return;
