@@ -1503,15 +1503,14 @@ a {
 
     /* --- Header --- */
     .header-inner {
-        height: auto;
-        min-height: 60px;
+        height: 52px;
         gap: 8px;
-        padding: 10px 0;
-        flex-wrap: wrap;
+        padding: 0;
+        flex-wrap: nowrap;
     }
 
     .logo-img {
-        height: 86px;
+        height: 108px;
     }
 
     .search-wrapper {
@@ -1537,8 +1536,8 @@ a {
     }
 
     .nav-link {
-        padding: 7px 10px;
-        font-size: 12px;
+        padding: 8px 12px;
+        font-size: 13px;
         gap: 5px;
         white-space: nowrap;
     }
@@ -1558,8 +1557,8 @@ a {
     }
 
     .nav-auth-btn {
-        padding: 7px 10px;
-        font-size: 12px;
+        padding: 8px 14px;
+        font-size: 13px;
         white-space: nowrap;
     }
 
@@ -1820,22 +1819,22 @@ a {
 @media (max-width: 480px) {
 
     .header-inner {
-        min-height: 54px;
-        gap: 10px;
+        height: 46px;
+        gap: 6px;
     }
 
     .logo-img {
-        height: 76px;
+        height: 96px;
     }
 
     .nav-link {
-        padding: 6px 8px;
-        font-size: 11px;
+        padding: 7px 10px;
+        font-size: 12px;
     }
 
     .nav-auth-btn {
-        padding: 6px 8px;
-        font-size: 11px;
+        padding: 7px 12px;
+        font-size: 12px;
     }
 
     .customer-session-account-btn {
