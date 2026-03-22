@@ -1404,14 +1404,6 @@
             const pricing = getCheckoutPricing(currentCustomer, cart);
             const cartSnapshot = cart.map(item => ({ ...item }));
 
-            // Block mixed carts (Stripe can't do payment + subscription in one session)
-            const hasSub = cart.some(i => i.autoRenew);
-            const hasOnetime = cart.some(i => !i.autoRenew);
-            if (hasSub && hasOnetime) {
-                showToast('You cannot mix auto-renewal and one-time items in one checkout. Please separate them.', 'error');
-                return;
-            }
-
             if (getStripeCheckoutFunctionUrl()) {
                 const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
                 if (!stripeResult.ok) {
