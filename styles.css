@@ -1503,14 +1503,14 @@ a {
 
     /* --- Header --- */
     .header-inner {
-        height: 52px;
+        height: 58px;
         gap: 8px;
         padding: 0;
         flex-wrap: nowrap;
     }
 
     .logo-img {
-        height: 108px;
+        height: 130px;
     }
 
     .search-wrapper {
@@ -1819,12 +1819,12 @@ a {
 @media (max-width: 480px) {
 
     .header-inner {
-        height: 46px;
+        height: 52px;
         gap: 6px;
     }
 
     .logo-img {
-        height: 96px;
+        height: 116px;
     }
 
     .nav-link {
