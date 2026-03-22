@@ -1,0 +1,4 @@
+project_id = "gypznlmfkarzgzfbqhks"
+
+[functions.create-stripe-checkout]
+verify_jwt = false

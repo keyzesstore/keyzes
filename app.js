@@ -679,46 +679,42 @@
             payload.paymentMethodTypes = paymentMethodTypes;
         }
 
-        if (!authReady()) {
-            return { ok: false, reason: 'Authentication is not configured for checkout.' };
-        }
-
         let accessToken = latestAccessToken || '';
-
-        const sessionResult = await supabaseClient.auth.getSession();
-        const sessionError = sessionResult && sessionResult.error;
-        const session = sessionResult && sessionResult.data && sessionResult.data.session;
-        if (!sessionError && session && session.access_token) {
-            accessToken = session.access_token;
-            latestAccessToken = accessToken;
-        }
-
-        if (!accessToken) {
-            const refreshResult = await supabaseClient.auth.refreshSession();
-            const refreshedSession = refreshResult && refreshResult.data && refreshResult.data.session;
-            if (refreshedSession && refreshedSession.access_token) {
-                accessToken = refreshedSession.access_token;
+        if (authReady()) {
+            const sessionResult = await supabaseClient.auth.getSession();
+            const sessionError = sessionResult && sessionResult.error;
+            const session = sessionResult && sessionResult.data && sessionResult.data.session;
+            if (!sessionError && session && session.access_token) {
+                accessToken = session.access_token;
                 latestAccessToken = accessToken;
             }
-        }
 
-        if (!accessToken) {
-            return { ok: false, reason: 'Your login session expired. Please log in again.' };
+            if (!accessToken) {
+                const refreshResult = await supabaseClient.auth.refreshSession();
+                const refreshedSession = refreshResult && refreshResult.data && refreshResult.data.session;
+                if (refreshedSession && refreshedSession.access_token) {
+                    accessToken = refreshedSession.access_token;
+                    latestAccessToken = accessToken;
+                }
+            }
         }
-
-        const authHeader = 'Bearer ' + accessToken;
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
 
         try {
+            const headers = {
+                'Content-Type': 'application/json',
+                apikey: APP_CONFIG.supabaseAnonKey,
+            };
+
+            if (accessToken) {
+                headers.Authorization = 'Bearer ' + accessToken;
+            }
+
             const response = await fetch(stripeCheckoutFunctionUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: authHeader,
-                    apikey: APP_CONFIG.supabaseAnonKey,
-                },
+                headers,
                 body: JSON.stringify(payload),
                 signal: controller.signal,
             });
@@ -727,7 +723,7 @@
             const result = raw ? JSON.parse(raw) : {};
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
-                    return { ok: false, reason: 'Your login session expired. Please log in again.' };
+                    return { ok: false, reason: 'Checkout auth failed (401/403). Function must allow browser invocation.' };
                 }
                 const backendReason = result && (result.error || result.message);
                 return {
@@ -1372,9 +1368,6 @@
                 const stripeResult = await createStripeCheckoutSession(currentCustomer, cart, pricing);
                 if (!stripeResult.ok) {
                     showToast('Stripe checkout error: ' + stripeResult.reason, 'error');
-                    if (String(stripeResult.reason || '').toLowerCase().includes('session expired')) {
-                        openCustomerAuth('login', 'Your session expired. Please log in again before checkout.');
-                    }
                     return;
                 }
 
