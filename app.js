@@ -1316,8 +1316,9 @@
         if (uniquePeriods.length <= 1) {
             return { compatible: cartItems.map(i => i.cartKey), excluded: [], activePeriod: uniquePeriods[0] || null };
         }
-        // Pick the period with most items as active
-        const activePeriod = uniquePeriods.sort((a, b) => periodCounts[b] - periodCounts[a])[0];
+        // Pick the shortest billing period as active (1 month → 3 months → 6 months → 1 year)
+        const periodOrder = ['1_month', '3_months', '6_months', '1_year'];
+        const activePeriod = uniquePeriods.sort((a, b) => periodOrder.indexOf(a) - periodOrder.indexOf(b))[0];
         const compatible = [];
         const excluded = [];
         cartItems.forEach(i => {
