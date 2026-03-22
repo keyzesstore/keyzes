@@ -15,6 +15,16 @@ function moneyToCents(value: unknown) {
     return Math.round(num * 100);
 }
 
+// Stripe fee pass-through: charge customer so seller receives full price.
+// Standard Stripe rate: 2.9% + $0.30 per successful charge.
+const STRIPE_PERCENT = 0.029;
+const STRIPE_FIXED_CENTS = 30;
+
+function addStripeFee(amountCents: number): number {
+    // charge = (amount + fixed) / (1 - percent)
+    return Math.ceil((amountCents + STRIPE_FIXED_CENTS) / (1 - STRIPE_PERCENT));
+}
+
 function sanitizePaymentMethodTypes(value: unknown) {
     const allowed = new Set([
         'acss_debit',
@@ -125,9 +135,11 @@ Deno.serve(async (req) => {
 
                 if (!title || unitAmount <= 0) return null;
 
+                const chargedAmount = addStripeFee(unitAmount);
+
                 const priceData: Record<string, unknown> = {
                     currency: 'usd',
-                    unit_amount: unitAmount,
+                    unit_amount: chargedAmount,
                     product_data: {
                         name: variantName ? `${title} (${variantName})` : title,
                         metadata: {

@@ -186,14 +186,27 @@
         return profile.referredBy;
     }
 
+    // Stripe fee constants (must match edge function)
+    const STRIPE_PERCENT = 0.029;
+    const STRIPE_FIXED = 0.30;
+
+    function calcStripeFee(amount) {
+        if (amount <= 0) return 0;
+        const charged = (amount + STRIPE_FIXED) / (1 - STRIPE_PERCENT);
+        return Math.round((charged - amount) * 100) / 100;
+    }
+
     function getCheckoutPricing(customer, cartItems) {
         const subtotal = cartItems.reduce((sum, item) => sum + (getItemPrice(item) * item.qty), 0);
         const activeRefCode = getActiveReferralCodeForCustomer(customer);
         const discountAmount = activeRefCode ? subtotal * AFFILIATE_RATE : 0;
-        const total = Math.max(0, subtotal - discountAmount);
+        const afterDiscount = Math.max(0, subtotal - discountAmount);
+        const processingFee = calcStripeFee(afterDiscount);
+        const total = Math.round((afterDiscount + processingFee) * 100) / 100;
         return {
             subtotal,
             discountAmount,
+            processingFee,
             total,
             activeRefCode,
         };
@@ -1430,6 +1443,12 @@
             cartDiscountRow.style.display = hasDiscount ? '' : 'none';
             cartDiscount.textContent = '-$' + formatMoney(pricing.discountAmount);
         }
+        const feeRow = $('#cartFeeRow');
+        const feeEl = $('#cartFee');
+        if (feeRow && feeEl) {
+            feeRow.style.display = pricing.processingFee > 0 ? '' : 'none';
+            feeEl.textContent = '$' + formatMoney(pricing.processingFee);
+        }
         $('#cartTotal').textContent = '$' + formatMoney(pricing.total);
         updateCheckoutState();
 
@@ -1928,6 +1947,12 @@
             const hasDiscount = pricing.discountAmount > 0;
             cartDiscountRow.style.display = hasDiscount ? '' : 'none';
             cartDiscount.textContent = '-$' + formatMoney(pricing.discountAmount);
+        }
+        const feeRow2 = $('#cartFeeRow');
+        const feeEl2 = $('#cartFee');
+        if (feeRow2 && feeEl2) {
+            feeRow2.style.display = pricing.processingFee > 0 ? '' : 'none';
+            feeEl2.textContent = '$' + formatMoney(pricing.processingFee);
         }
         if (checkoutNote) {
             if (!isSignedIn) {
